@@ -483,6 +483,19 @@ button {
   opacity: 0.72;
 }
 
+.setting-chip.warn {
+  border-color: color-mix(in srgb, var(--danger), transparent 58%);
+  background: color-mix(in srgb, var(--danger), transparent 90%);
+  color: var(--danger);
+}
+
+.group-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
 .item-tags {
   margin-top: -2px;
 }
@@ -831,6 +844,133 @@ select:focus {
   margin-top: 14px;
 }
 
+.install-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.install-prompt-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 80%);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 92%), transparent 74%),
+    color-mix(in srgb, var(--solid), transparent 8%);
+  box-shadow: var(--soft-shadow);
+}
+
+.install-prompt-card h3,
+.install-settings-card h3 {
+  margin: 4px 0;
+  font-size: 1rem;
+}
+
+.guest-mode-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--ink), transparent 88%);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--solid), transparent 7%);
+}
+
+.guest-mode-card h3 {
+  margin: 4px 0;
+  font-size: 1rem;
+}
+
+.guest-mode-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.guest-mode-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.guest-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--solid), transparent 8%);
+}
+
+.guest-check-item strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.guest-check-item span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
+.guest-check-item .guest-check-mark {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent), transparent 88%);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.guest-check-item.warn .guest-check-mark {
+  background: color-mix(in srgb, var(--danger), transparent 90%);
+  color: var(--danger);
+}
+
+.aha-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 78%);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 93%), transparent 76%),
+    color-mix(in srgb, var(--solid), transparent 6%);
+}
+
+.aha-panel h4 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.aha-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.48;
+}
+
+.quick-capture-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-capture-bar .tiny-button {
+  min-height: 32px;
+  padding-inline: 11px;
+  font-size: 0.76rem;
+}
+
 .item-actions {
   margin-top: 4px;
   gap: 7px;
@@ -841,6 +981,66 @@ select:focus {
   min-height: 34px;
   padding-inline: 10px;
   font-size: 0.78rem;
+}
+
+.item-reminders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.item-reminder-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  width: 100%;
+}
+
+.item-reminders .tiny-button {
+  min-height: 30px;
+  padding-inline: 10px;
+  font-size: 0.74rem;
+  border-radius: 999px;
+}
+
+.item-reminders .tiny-button.active {
+  border-color: color-mix(in srgb, var(--category-color, var(--accent)), transparent 48%);
+  background: color-mix(in srgb, var(--category-color, var(--accent)), transparent 87%);
+  color: var(--category-color, var(--accent));
+}
+
+.quick-edit-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 6px;
+  border: 1px solid color-mix(in srgb, var(--category-color, var(--accent)), transparent 74%);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--solid), transparent 6%);
+}
+
+.quick-edit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quick-edit-head .eyebrow {
+  margin: 0;
+}
+
+.quick-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quick-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .primary,
@@ -897,6 +1097,27 @@ select:focus {
   margin: 0;
   color: var(--ink);
   font-size: 1.5rem;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.empty-card {
+  justify-items: start;
+}
+
+.empty-card .item-raw {
+  color: var(--muted);
+}
+
+.empty-card .empty-actions {
+  justify-content: flex-start;
+  margin-top: 2px;
 }
 
 .review-content {
@@ -965,8 +1186,36 @@ select:focus {
   color: var(--ink);
 }
 
+.chip.due {
+  background: color-mix(in srgb, var(--category-color, var(--accent)), transparent 88%);
+  color: var(--category-color, var(--accent));
+}
+
+.chip.due.soft {
+  background: color-mix(in srgb, var(--category-color, var(--accent)), transparent 93%);
+}
+
+.chip.due.urgent {
+  background: color-mix(in srgb, var(--danger), transparent 90%);
+  color: var(--danger);
+}
+
 .recent-section {
   margin-top: 18px;
+}
+
+.focus-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.focus-summary {
+  display: grid;
+}
+
+.home-focus-card {
+  min-height: 0;
 }
 
 .list-toolbar {
@@ -1042,6 +1291,22 @@ select:focus {
 .item-card.pinned {
   border-color: color-mix(in srgb, var(--category-color, var(--accent)), transparent 56%);
   box-shadow: var(--soft-shadow);
+}
+
+.item-card.due-overdue {
+  border-color: color-mix(in srgb, var(--danger), transparent 48%);
+}
+
+.item-card.due-overdue::after {
+  background: color-mix(in srgb, var(--danger), transparent 12%);
+}
+
+.item-card.due-today {
+  border-color: color-mix(in srgb, var(--category-color, var(--accent)), transparent 34%);
+}
+
+.item-card.due-tomorrow {
+  border-color: color-mix(in srgb, var(--category-color, var(--accent)), transparent 58%);
 }
 
 .item-card:hover {
@@ -1332,6 +1597,31 @@ select:focus {
   letter-spacing: 0;
 }
 
+.summary-card {
+  display: grid;
+  gap: 10px;
+  min-height: 74px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 76%);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 92%), transparent 76%),
+    linear-gradient(180deg, color-mix(in srgb, var(--solid), transparent 4%), color-mix(in srgb, var(--solid), transparent 14%));
+  box-shadow: var(--soft-shadow);
+  grid-column: 1 / -1;
+}
+
+.summary-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.summary-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .agenda-create-panel {
   width: min(1280px, 100%);
   margin: 0 auto 14px;
@@ -1448,6 +1738,10 @@ select:focus {
 .cloud-setup-card h3 {
   margin: 5px 0 10px;
   font-size: 1.05rem;
+}
+
+.install-settings-card {
+  margin-bottom: 10px;
 }
 
 .setup-steps {
@@ -1672,6 +1966,10 @@ select:focus {
 
   .agenda-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quick-edit-grid {
+    grid-template-columns: 1fr;
   }
 
   .calendar-head,

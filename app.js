@@ -1,6 +1,12 @@
 const STORAGE_KEY = "yourvoice.items.v1";
 const LEGACY_STORAGE_KEY = "echodesk.items.v1";
 const SETTINGS_KEY = "yourvoice.settings.v1";
+const INDEXED_DB_NAME = "yourvoice-app-db";
+const INDEXED_DB_VERSION = 1;
+const INDEXED_DB_STORE = "app_state";
+const INDEXED_ITEMS_KEY = "items";
+const INDEXED_SETTINGS_KEY = "settings";
+const EXAMPLE_NOTE = "Morgen 14 Uhr Zahnarzt";
 const runtimeConfig =
   typeof window !== "undefined" && window.__YOUR_VOICE_CONFIG__ && typeof window.__YOUR_VOICE_CONFIG__ === "object"
     ? window.__YOUR_VOICE_CONFIG__
@@ -46,6 +52,7 @@ const state = {
   inboxGroupOrder: Array.isArray(savedSettings.inboxGroupOrder) ? savedSettings.inboxGroupOrder : [],
   hiddenInboxGroups: Array.isArray(savedSettings.hiddenInboxGroups) ? savedSettings.hiddenInboxGroups : [],
   openInboxGroups: new Set(),
+  quickEditItemId: "",
   searchFilters: new Set(),
   searchFilterOpen: false,
   searchDateFilter: "any",
@@ -53,10 +60,20 @@ const state = {
   searchPriorityFilter: "any",
   lastSyncAt: savedSettings.lastSyncAt || "",
   lastBackupAt: savedSettings.lastBackupAt || "",
+  lastImportedAt: savedSettings.lastImportedAt || "",
+  installDismissedAt: savedSettings.installDismissedAt || "",
+  guestModeHintDismissed: Boolean(savedSettings.guestModeHintDismissed),
   calendarView: "month",
   selectedDate: startOfDay(new Date()),
   calendarDate: startOfDay(new Date()),
   dayPanelOpen: false,
+  storageReady: false,
+  storagePersisted: false,
+  storageBackend: typeof indexedDB !== "undefined" ? "indexeddb" : "localstorage",
+  storageWarning: "",
+  installReady: false,
+  standaloneMode: false,
+  iosInstallHint: false,
 };
 
 const els = {
@@ -64,7 +81,22 @@ const els = {
   viewTitle: document.querySelector("#viewTitle"),
   captureInput: document.querySelector("#captureInput"),
   parseButton: document.querySelector("#parseButton"),
+  loadExampleButton: document.querySelector("#loadExampleButton"),
   clearInputButton: document.querySelector("#clearInputButton"),
+  quickCaptureButtons: [...document.querySelectorAll("[data-quick-capture]")],
+  pasteCaptureButton: document.querySelector("#pasteCaptureButton"),
+  installPromptCard: document.querySelector("#installPromptCard"),
+  installAppButton: document.querySelector("#installAppButton"),
+  dismissInstallPromptButton: document.querySelector("#dismissInstallPromptButton"),
+  installHintText: document.querySelector("#installHintText"),
+  guestModeCard: document.querySelector("#guestModeCard"),
+  guestModeText: document.querySelector("#guestModeText"),
+  guestModeMeta: document.querySelector("#guestModeMeta"),
+  guestModeChecklist: document.querySelector("#guestModeChecklist"),
+  guestBackupNowButton: document.querySelector("#guestBackupNowButton"),
+  openBackupButton: document.querySelector("#openBackupButton"),
+  openSyncSettingsButton: document.querySelector("#openSyncSettingsButton"),
+  dismissGuestCardButton: document.querySelector("#dismissGuestCardButton"),
   micButton: document.querySelector("#micButton"),
   floatingVoiceButton: document.querySelector("#floatingVoiceButton"),
   micHint: document.querySelector("#micHint"),
@@ -73,12 +105,15 @@ const els = {
   reviewTemplate: document.querySelector("#reviewTemplate"),
   categoryGrid: document.querySelector("#categoryGrid"),
   agendaMetrics: document.querySelector("#agendaMetrics"),
+  focusSummary: document.querySelector("#focusSummary"),
+  focusList: document.querySelector("#focusList"),
   calendarGrid: document.querySelector("#calendarGrid"),
   calendarTitle: document.querySelector("#calendarTitle"),
   dayPanel: document.querySelector("#dayPanel"),
   agendaTitleInput: document.querySelector("#agendaTitleInput"),
   agendaDateInput: document.querySelector("#agendaDateInput"),
   agendaTimeInput: document.querySelector("#agendaTimeInput"),
+  agendaReminderInput: document.querySelector("#agendaReminderInput"),
   agendaRepeatInput: document.querySelector("#agendaRepeatInput"),
   repeatTextInput: document.querySelector("#repeatTextInput"),
   createAgendaEventButton: document.querySelector("#createAgendaEventButton"),
@@ -99,10 +134,15 @@ const els = {
   showDeletedButton: document.querySelector("#showDeletedButton"),
   addInboxCategoryButton: document.querySelector("#addInboxCategoryButton"),
   exportButton: document.querySelector("#exportButton"),
+  importButton: document.querySelector("#importButton"),
+  importFileInput: document.querySelector("#importFileInput"),
+  calendarExportButton: document.querySelector("#calendarExportButton"),
   deleteAllButton: document.querySelector("#deleteAllButton"),
   syncStatus: document.querySelector("#syncStatus"),
   themeButton: document.querySelector("#themeButton"),
   settingsThemeButton: document.querySelector("#settingsThemeButton"),
+  installSettingsButton: document.querySelector("#installSettingsButton"),
+  installStatusText: document.querySelector("#installStatusText"),
   syncToggle: document.querySelector("#syncToggle"),
   supabaseUrlInput: document.querySelector("#supabaseUrlInput"),
   supabaseAnonKeyInput: document.querySelector("#supabaseAnonKeyInput"),
@@ -130,6 +170,8 @@ const els = {
   focusModeToggle: document.querySelector("#focusModeToggle"),
   privacyModeInput: document.querySelector("#privacyModeInput"),
   backupButton: document.querySelector("#backupButton"),
+  backupStatusText: document.querySelector("#backupStatusText"),
+  localStorageNote: document.querySelector("#localStorageNote"),
   loginButton: document.querySelector("#loginButton"),
   registerButton: document.querySelector("#registerButton"),
   magicLinkButton: document.querySelector("#magicLinkButton"),
@@ -196,14 +238,22 @@ const weekdays = {
 const weekdayCodes = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
 let supabaseClient = null;
+let indexedDbPromise = null;
+let persistenceQueue = Promise.resolve();
+let reminderRefreshHandle = 0;
+const reminderTimers = new Map();
+let deferredInstallPrompt = null;
 
-init();
+void init();
 
-function init() {
+async function init() {
+  await hydratePersistentState();
   applySettings();
   registerServiceWorker();
   setupSpeech();
   bindEvents();
+  setupInstallExperience();
+  handleIncomingLaunchContext();
   renderAll();
   void initCloud();
 }
@@ -227,6 +277,41 @@ function bindEvents() {
   els.clearInputButton.addEventListener("click", () => {
     els.captureInput.value = "";
     els.captureInput.focus();
+  });
+  els.loadExampleButton?.addEventListener("click", () => {
+    loadExampleNote();
+  });
+  els.quickCaptureButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      applyQuickCapture(button.dataset.quickCapture || "");
+    });
+  });
+  els.pasteCaptureButton?.addEventListener("click", () => {
+    void pasteFromClipboardToCapture();
+  });
+  els.installAppButton?.addEventListener("click", () => {
+    void promptInstallApp();
+  });
+  els.installSettingsButton?.addEventListener("click", () => {
+    void promptInstallApp();
+  });
+  els.dismissInstallPromptButton?.addEventListener("click", () => {
+    dismissInstallPrompt();
+  });
+  els.openBackupButton?.addEventListener("click", () => {
+    openSettingsPanel("privacy");
+  });
+  els.guestBackupNowButton?.addEventListener("click", () => {
+    exportData();
+  });
+  els.openSyncSettingsButton?.addEventListener("click", () => {
+    openSettingsPanel("sync");
+  });
+  els.dismissGuestCardButton?.addEventListener("click", () => {
+    state.guestModeHintDismissed = true;
+    saveSettings();
+    updateGuestModeUi();
+    showToast("Gast-Hinweis ausgeblendet");
   });
 
   els.micButton.addEventListener("click", toggleSpeech);
@@ -257,6 +342,7 @@ function bindEvents() {
     renderCalendar();
   });
   els.agendaDateInput.value = toDateInputValue(state.selectedDate);
+  if (els.agendaReminderInput) els.agendaReminderInput.value = state.remindersEnabled ? "15" : "0";
   els.agendaRepeatInput.addEventListener("change", renderRepeatControls);
   els.createAgendaEventButton.addEventListener("click", createManualAgendaEvent);
   renderRepeatControls();
@@ -329,6 +415,16 @@ function bindEvents() {
   });
 
   els.exportButton.addEventListener("click", exportData);
+  els.importButton?.addEventListener("click", () => {
+    els.importFileInput?.click();
+  });
+  els.calendarExportButton?.addEventListener("click", exportCalendarIcs);
+  els.importFileInput?.addEventListener("change", () => {
+    const [file] = Array.from(els.importFileInput.files || []);
+    if (!file) return;
+    void importDataFromFile(file);
+    els.importFileInput.value = "";
+  });
 
   els.deleteAllButton.addEventListener("click", () => {
     const ok = window.confirm("Lokale Your Voice Daten wirklich löschen?");
@@ -336,6 +432,7 @@ function bindEvents() {
     state.items = [];
     saveItems();
     renderAll();
+    showToast("Lokale Daten gelöscht");
   });
   els.sendContactButton.addEventListener("click", sendContactMessage);
 }
@@ -373,10 +470,7 @@ function bindSettingsEvents() {
   els.focusModeToggle.addEventListener("change", () => updateSetting("focusMode", els.focusModeToggle.checked));
   els.privacyModeInput.addEventListener("change", () => updateSetting("privacyMode", els.privacyModeInput.value));
   els.backupButton.addEventListener("click", () => {
-    state.lastBackupAt = new Date().toISOString();
-    saveSettings();
     exportData();
-    showToast("Backup erstellt");
   });
   els.toggleKeyVisibilityButton.addEventListener("click", () => {
     const isHidden = els.supabaseAnonKeyInput.type === "password";
@@ -429,6 +523,7 @@ function createManualAgendaEvent() {
   const dueStart = `${dateValue}T${timeValue || "09:00"}:00`;
   const dueDate = new Date(dueStart);
   const recurrenceRule = buildManualRecurrenceRule(dueDate);
+  const reminderOffset = state.remindersEnabled ? Number(els.agendaReminderInput?.value || 0) : 0;
   const item = {
     id: crypto.randomUUID(),
     kind: "event",
@@ -449,7 +544,7 @@ function createManualAgendaEvent() {
     recurrenceRule,
     placeLabel: "",
     people: [],
-    reminderOffset: state.remindersEnabled ? 30 : 0,
+    reminderOffset,
     parserMode: "manual",
     parserVersion: "0.2.0",
     missingFields: [],
@@ -466,12 +561,14 @@ function createManualAgendaEvent() {
   state.dayPanelOpen = true;
   els.agendaTitleInput.value = "";
   els.agendaTimeInput.value = "";
+  if (els.agendaReminderInput) els.agendaReminderInput.value = state.remindersEnabled ? "15" : "0";
   els.agendaRepeatInput.value = "none";
   els.repeatTextInput.value = "";
   renderRepeatControls();
   saveItems();
   renderAll();
   showToast(recurrenceRule ? "Wiederholung gespeichert" : "Termin gespeichert");
+  if (Number(reminderOffset) > 0 && state.remindersEnabled) void ensureReminderPermission();
   if (state.syncEnabled && state.cloudUser) void syncCloud("manual-event");
 }
 
@@ -842,7 +939,7 @@ function mergeCloudItems(localItems, cloudRows) {
 }
 
 function getCloudStatusText() {
-  if (!hasCloudConfig()) return "Cloud noch nicht verbunden. Supabase URL und Anon Key eintragen.";
+  if (!hasCloudConfig()) return "Gastmodus aktiv. Du kannst später Backup und Sync ergänzen.";
   if (!state.cloudReady) return "Cloud-Konfiguration gespeichert, Verbindung nicht aktiv.";
   if (!state.cloudUser) return "Cloud bereit. Melde dich per Magic Link an.";
   if (state.syncBusy) return "Synchronisierung läuft...";
@@ -934,14 +1031,38 @@ function applySettings() {
       : state.cloudReady
         ? "Cloud bereit"
         : state.privacyMode === "Cloud optional"
-          ? "Cloud bereit"
+          ? "Gastmodus"
           : "Lokal";
   els.syncStatus.lastChild.textContent = ` ${syncText}`;
+  const localStorageStatus = state.storageReady
+    ? state.storagePersisted
+      ? "IndexedDB gesichert."
+      : "IndexedDB aktiv."
+    : state.storageBackend === "localstorage"
+      ? "Browser-Speicher aktiv."
+      : "Lokaler Speicher wird vorbereitet.";
   document.querySelector("#storageStatus").textContent = state.syncEnabled
-    ? "Sync zwischen Geräten aktiv."
+    ? `${localStorageStatus} Sync zwischen Geräten aktiv.`
     : state.privacyMode === "Cloud optional"
-      ? "Cloud optional. Lokal zuerst."
-      : "Lokal gespeichert.";
+      ? `${localStorageStatus} Cloud optional.`
+      : `${localStorageStatus} Lokal zuerst.`;
+  if (els.localStorageNote) {
+    els.localStorageNote.textContent = state.storageWarning
+      ? state.storageWarning
+      : state.storageReady
+        ? state.storagePersisted
+          ? "Deine Daten liegen lokal in IndexedDB und sind als persistenter Speicher angefragt. Cloud Sync bleibt optional."
+          : "Deine Daten liegen lokal in IndexedDB. Für zusätzlichen Schutz empfiehlt sich ein Export oder Cloud Sync."
+        : "Fallback auf Browser-Speicher aktiv. Bitte sichere wichtige Daten zusätzlich per Export.";
+  }
+  if (els.backupStatusText) {
+    const parts = [];
+    if (state.lastBackupAt) parts.push(`Letztes Backup ${formatDateTime(state.lastBackupAt, false)}`);
+    if (state.lastImportedAt) parts.push(`Letzter Import ${formatDateTime(state.lastImportedAt, false)}`);
+    els.backupStatusText.textContent = parts.length ? `${parts.join(" · ")}.` : "Noch kein Backup erstellt.";
+  }
+  updateInstallUi();
+  updateGuestModeUi();
   els.cloudStatusText.textContent = getCloudStatusText();
   els.authDebugText.textContent = state.authStatusMessage;
   if (cloudConfigLocked && !state.cloudUser) {
@@ -1090,7 +1211,6 @@ function renderAgendaBoard() {
 
 function renderAgendaMetrics() {
   const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
   const week = addDays(today, 7);
   const open = activeItems();
   const dueToday = open.filter((item) => sameDay(new Date(item.dueStart || item.agendaDate || item.createdAt), today)).length;
@@ -1106,14 +1226,49 @@ function renderAgendaMetrics() {
     ["Termine", events],
     ["Aufgaben", tasks],
   ];
-  els.agendaMetrics.replaceChildren(
-    ...metrics.map(([label, value]) => {
-      const card = document.createElement("article");
-      card.className = "metric-card";
-      card.innerHTML = `<span>${escapeHtml(label)}</span><strong>${value}</strong>`;
-      return card;
-    }),
-  );
+  const cards = metrics.map(([label, value]) => {
+    const card = document.createElement("article");
+    card.className = "metric-card";
+    card.innerHTML = `<span>${escapeHtml(label)}</span><strong>${value}</strong>`;
+    return card;
+  });
+  if (state.dailySummary) cards.push(buildDailySummaryCard(open, today));
+  els.agendaMetrics.replaceChildren(...cards);
+}
+
+function buildDailySummaryCard(openItems, today) {
+  const card = document.createElement("article");
+  card.className = "summary-card";
+  const todayItems = openItems
+    .filter((item) => sameDay(new Date(item.dueStart || item.agendaDate || item.createdAt), today))
+    .sort((a, b) => new Date(a.dueStart || a.agendaDate || a.createdAt) - new Date(b.dueStart || b.agendaDate || b.createdAt));
+  const overdue = openItems.filter((item) => {
+    if (!item.dueStart) return false;
+    const due = new Date(item.dueStart);
+    return due < new Date() && !sameDay(due, today);
+  });
+  const nextItem = openItems
+    .filter((item) => item.dueStart && new Date(item.dueStart) >= new Date())
+    .sort((a, b) => new Date(a.dueStart) - new Date(b.dueStart))[0];
+  const todayTasks = todayItems.filter((item) => normalizeKind(item.kind) !== "event").length;
+  const todayEvents = todayItems.filter((item) => normalizeKind(item.kind) === "event").length;
+  card.innerHTML = `
+    <p class="eyebrow">Tageszusammenfassung</p>
+    <h3>${todayItems.length ? `Heute warten ${todayItems.length} Eintraege` : "Heute ist es ruhig"}</h3>
+    <p class="settings-note">
+      ${
+        nextItem
+          ? `Naechster Fokus: ${escapeHtml(cleanDisplayText(nextItem.title))} · ${escapeHtml(formatDueBadge(nextItem))}`
+          : "Noch kein naechster Termin geplant."
+      }
+    </p>
+    <div class="summary-pills">
+      <span class="setting-chip">${todayTasks} Aufgaben</span>
+      <span class="setting-chip">${todayEvents} Termine</span>
+      ${overdue.length ? `<span class="setting-chip warn">${overdue.length} ueberfaellig</span>` : `<span class="setting-chip muted">Keine Altlasten</span>`}
+    </div>
+  `;
+  return card;
 }
 
 function setupSpeech() {
@@ -1799,14 +1954,26 @@ function renderReview(draft) {
     ...ensureItemTags(draft).map((tag) => [getKindLabel(tag), "ok"]),
     ...(draft.missingFields || []).map((field) => [`Fehlt: ${field}`, "warn"]),
     ...(draft.suggestedActions || []).map((action) => [`Aktion: ${action}`, "ok"]),
+    ...(draft.reminderOffset ? [[formatReminderOffset(draft.reminderOffset), "ok"]] : []),
+    ...(draft.recurrenceRule ? [[formatRecurrenceLabel(draft.recurrenceRule), "ok"]] : []),
   ];
   reviewChips.replaceChildren(...chips.map(([label, variant]) => chip(label, variant)));
+
+  const ahaPanel = document.createElement("div");
+  ahaPanel.className = "aha-panel";
+  ahaPanel.innerHTML = `
+    <p class="eyebrow">Das habe ich verstanden</p>
+    <h4>${escapeHtml(buildAhaHeadline(draft))}</h4>
+    <p>${escapeHtml(buildAhaText(draft))}</p>
+  `;
+  root.insertBefore(ahaPanel, editFields);
 
   fragment.querySelector("#editReviewButton").addEventListener("click", () => {
     editFields.hidden = !editFields.hidden;
   });
 
   fragment.querySelector("#saveReviewButton").addEventListener("click", () => {
+    const wasEmptyGuest = !state.loggedIn && activeItems().length === 0;
     const dueStart = dateInput.value ? `${dateInput.value}T${timeInput.value || "09:00"}:00` : null;
     const item = {
       ...draft,
@@ -1832,8 +1999,16 @@ function renderReview(draft) {
     state.currentDraft = null;
     els.captureInput.value = "";
     showToast("Gespeichert");
-    renderReviewEmpty("Gespeichert.", "Der Eintrag liegt jetzt lokal in deiner Inbox.");
+    renderReviewEmpty(
+      wasEmptyGuest ? "Erster Eintrag gespeichert." : "Gespeichert.",
+      wasEmptyGuest
+        ? "Your Voice hat deine erste Eingabe lokal gesichert. Du kannst jetzt einfach weitermachen und Backup oder Sync später ergänzen."
+        : state.loggedIn
+          ? "Der Eintrag liegt jetzt in deiner Inbox und kann synchronisiert werden."
+          : "Der Eintrag liegt jetzt lokal in deiner Inbox. Backup und Sync kannst du später ergänzen.",
+    );
     renderAll();
+    if (Number(item.reminderOffset || 0) > 0 && state.remindersEnabled) void ensureReminderPermission();
     if (state.syncEnabled && state.cloudUser) void syncCloud("save");
     setView(item.dueStart && isTodayOrOverdue(item.dueStart) ? "agenda" : "inbox");
   });
@@ -1846,19 +2021,57 @@ function renderReview(draft) {
   els.reviewPanel.replaceChildren(root);
 }
 
+function buildAhaHeadline(draft) {
+  const pieces = [];
+  pieces.push(getKindLabel(draft.kind));
+  if (draft.dueStart) pieces.push(formatDueBadge(draft));
+  if (draft.placeLabel) pieces.push(draft.placeLabel);
+  return pieces.join(" · ");
+}
+
+function buildAhaText(draft) {
+  const bits = [];
+  if (Array.isArray(draft.people) && draft.people.length) {
+    bits.push(`Personen: ${draft.people.map((person) => person.name).join(", ")}`);
+  }
+  if (Array.isArray(draft.shoppingItems) && draft.shoppingItems.length) {
+    bits.push(`Liste: ${draft.shoppingItems.join(", ")}`);
+  }
+  if (draft.recurrenceRule) bits.push(formatRecurrenceLabel(draft.recurrenceRule));
+  if (draft.reminderOffset) bits.push(`Erinnerung ${formatReminderOffset(draft.reminderOffset).toLowerCase()}`);
+  if (!bits.length) {
+    return draft.reviewRequired
+      ? "Du kannst den Vorschlag noch kurz prüfen und bei Bedarf anpassen."
+      : "Die Eingabe ist direkt verständlich und kann so gespeichert werden.";
+  }
+  return bits.join(" · ");
+}
+
 function renderReviewEmpty(title = "Bereit.", text = "Deine nächste Eingabe erscheint hier ganz kurz zur Bestätigung.") {
   const wrapper = document.createElement("div");
   wrapper.className = "empty-state";
-  wrapper.innerHTML = `<p class="eyebrow">Review</p><h3>${escapeHtml(title)}</h3><p>${escapeHtml(text)}</p>`;
+  wrapper.innerHTML = `
+    <p class="eyebrow">Review</p>
+    <h3>${escapeHtml(title)}</h3>
+    <p>${escapeHtml(text)}</p>
+    <div class="empty-actions">
+      <button class="ghost" type="button" data-empty-action="example">Beispiel laden</button>
+    </div>
+  `;
+  wrapper.querySelector('[data-empty-action="example"]')?.addEventListener("click", () => {
+    loadExampleNote();
+  });
   els.reviewPanel.replaceChildren(wrapper);
 }
 
 function renderAll() {
   renderCategories();
   renderAgendaBoard();
+  renderHomeFocus();
   renderRecent();
   renderInbox();
   renderSearch();
+  queueReminderRefresh();
 }
 
 function renderInbox() {
@@ -1877,7 +2090,66 @@ function renderInbox() {
 
 function renderRecent() {
   const items = activeItems().slice(0, 3);
-  renderList(els.recentList, items, "Noch nichts gespeichert.");
+  renderList(els.recentList, items, "Noch nichts gespeichert.", "recent");
+}
+
+function renderHomeFocus() {
+  const items = getHomeFocusItems();
+  const summary = buildHomeFocusSummary(items);
+  els.focusSummary.replaceChildren(summary);
+  renderList(els.focusList, items.slice(0, 3), "Heute ist noch nichts akut. Du kannst entspannt neu erfassen.", "focus");
+}
+
+function getHomeFocusItems() {
+  const now = new Date();
+  const today = startOfDay(now);
+  const nextWeek = addDays(today, 7);
+  return activeItems()
+    .filter((item) => {
+      if (!item.dueStart) return false;
+      const due = new Date(item.dueStart);
+      return due <= nextWeek;
+    })
+    .sort((a, b) => compareFocusPriority(a, b, now));
+}
+
+function compareFocusPriority(a, b, now = new Date()) {
+  const scoreA = getFocusPriorityScore(a, now);
+  const scoreB = getFocusPriorityScore(b, now);
+  if (scoreA !== scoreB) return scoreA - scoreB;
+  const dueA = new Date(a.dueStart || a.agendaDate || a.createdAt);
+  const dueB = new Date(b.dueStart || b.agendaDate || b.createdAt);
+  return dueA - dueB;
+}
+
+function getFocusPriorityScore(item, now = new Date()) {
+  const dueState = getDueVisualState(item, now);
+  const priority = getItemPriority(item);
+  const stateScore = { overdue: 0, today: 1, tomorrow: 2, "": 3 }[dueState] ?? 3;
+  const priorityScore = { high: 0, medium: 1, low: 2 }[priority] ?? 1;
+  return stateScore * 10 + priorityScore;
+}
+
+function buildHomeFocusSummary(items) {
+  const today = startOfDay(new Date());
+  const tomorrow = addDays(today, 1);
+  const overdue = items.filter((item) => getDueVisualState(item) === "overdue").length;
+  const dueToday = items.filter((item) => item.dueStart && sameDay(new Date(item.dueStart), today)).length;
+  const dueTomorrow = items.filter((item) => item.dueStart && sameDay(new Date(item.dueStart), tomorrow)).length;
+  const next = items[0];
+  const card = document.createElement("article");
+  card.className = "summary-card home-focus-card";
+  card.innerHTML = `
+    <p class="eyebrow">Heute im Blick</p>
+    <h3>${next ? escapeHtml(cleanDisplayText(next.title)) : "Gerade ist alles ruhig"}</h3>
+    <p class="settings-note">${next ? `Nächster Fokus: ${escapeHtml(formatDueBadge(next))}` : "Deine nächsten fälligen Einträge erscheinen hier automatisch."}</p>
+    <div class="summary-pills">
+      ${overdue ? `<span class="setting-chip warn">${overdue} überfällig</span>` : `<span class="setting-chip muted">Nichts überfällig</span>`}
+      <span class="setting-chip">${dueToday} heute</span>
+      <span class="setting-chip muted">${dueTomorrow} morgen</span>
+    </div>
+  `;
+  return card;
 }
 
 function activeItems() {
@@ -1916,9 +2188,7 @@ function renderArchiveInbox(items, title, emptyText) {
   const list = section.querySelector(".group-items");
   if (items.length) list.replaceChildren(...sortInboxItems(items).map(renderItem));
   else {
-    const empty = document.createElement("div");
-    empty.className = "empty-box";
-    empty.textContent = emptyText;
+    const empty = buildEmptyBox(emptyText, title === "Erledigt" ? [] : [{ label: "Zur Inbox", action: "inbox" }]);
     list.replaceChildren(empty);
   }
   els.inboxList.replaceChildren(section);
@@ -1942,7 +2212,7 @@ function renderSearch() {
   const query = els.searchInput.value.trim().toLowerCase();
   const selectedFilters = [...state.searchFilters];
   if (!query && !selectedFilters.length && !hasActiveSearchFilters()) {
-    renderList(els.searchList, [], "Suchbegriff oder Filter wählen.");
+    renderList(els.searchList, [], "Suchbegriff oder Filter wählen.", "search-idle");
     return;
   }
   const items = activeItems()
@@ -1952,7 +2222,7 @@ function renderSearch() {
     .filter((item) => !selectedFilters.length || ensureItemTags(item).some((tag) => selectedFilters.includes(tag)))
     .filter(matchesDateFilter)
     .filter(matchesPriorityFilter);
-  renderList(els.searchList, items, "Keine Treffer.");
+  renderList(els.searchList, items, "Keine Treffer.", "search-empty");
 }
 
 function hasActiveSearchFilters() {
@@ -1994,11 +2264,9 @@ function renderSearchFilters() {
   );
 }
 
-function renderList(container, items, emptyText = "Noch keine Einträge.") {
+function renderList(container, items, emptyText = "Noch keine Einträge.", emptyVariant = "default") {
   if (!items.length) {
-    const empty = document.createElement("div");
-    empty.className = "item-card";
-    empty.innerHTML = `<p class="item-raw">${escapeHtml(emptyText)}</p>`;
+    const empty = buildContextualEmptyState(emptyText, emptyVariant);
     container.replaceChildren(empty);
     return;
   }
@@ -2021,11 +2289,17 @@ function renderGroupedInbox(items) {
     section.dataset.groupKind = group.category.kind;
     section.style.setProperty("--category-color", group.category.color);
     section.open = state.openInboxGroups.has(group.category.kind);
+    const urgency = getUrgencyCounts(group.items);
     section.innerHTML = `
       <summary>
         <span class="drag-handle" aria-hidden="true">⋮⋮</span>
         <span class="group-icon" aria-hidden="true">${iconSvg(group.category.icon)}</span>
         <strong>${escapeHtml(group.category.label)}</strong>
+        <span class="group-summary-chips">
+          ${urgency.overdue ? `<span class="setting-chip warn">${urgency.overdue} überfällig</span>` : ""}
+          ${urgency.today ? `<span class="setting-chip">${urgency.today} heute</span>` : ""}
+          ${urgency.tomorrow ? `<span class="setting-chip muted">${urgency.tomorrow} morgen</span>` : ""}
+        </span>
         <button class="ghost tiny-button delete-group" type="button" data-delete-group="${escapeHtml(group.category.kind)}">Löschen</button>
         <span>${group.items.length}</span>
       </summary>
@@ -2060,9 +2334,10 @@ function renderGroupedInbox(items) {
     if (group.items.length) {
       groupItems.replaceChildren(...group.items.map(renderItem));
     } else {
-      const empty = document.createElement("div");
-      empty.className = "empty-box";
-      empty.textContent = "Bereit für neue Einträge.";
+      const empty = buildEmptyBox("Bereit für neue Einträge.", [
+        { label: "Beispiel laden", action: "example" },
+        { label: "Notiz erstellen", action: "capture" },
+      ]);
       groupItems.replaceChildren(empty);
     }
     groupItems.addEventListener("dragover", (event) => {
@@ -2198,7 +2473,18 @@ function renderDayPanel() {
   if (!state.dayPanelOpen) {
     const compact = document.createElement("div");
     compact.className = "day-panel-content compact";
-    compact.innerHTML = `<p class="eyebrow">Tagesdetails</p><h3>Tag anklicken</h3><p class="item-raw">Details erscheinen erst, wenn du ein Datum auswählst.</p>`;
+    compact.innerHTML = `
+      <p class="eyebrow">Tagesdetails</p>
+      <h3>Tag anklicken</h3>
+      <p class="item-raw">Details erscheinen erst, wenn du ein Datum auswählst.</p>
+      <div class="empty-actions">
+        <button class="ghost" type="button" data-empty-action="capture">Notiz erstellen</button>
+      </div>
+    `;
+    compact.querySelector('[data-empty-action="capture"]')?.addEventListener("click", () => {
+      setView("capture");
+      els.captureInput.focus();
+    });
     els.dayPanel.replaceChildren(compact);
     return;
   }
@@ -2220,9 +2506,7 @@ function renderDayPanel() {
   if (items.length) {
     list.replaceChildren(...items.map(renderAgendaEntry));
   } else {
-    const empty = document.createElement("article");
-    empty.className = "item-card";
-    empty.innerHTML = `<p class="item-raw">Keine Einträge für diesen Tag.</p>`;
+    const empty = buildContextualEmptyState("Keine Einträge für diesen Tag.", "agenda-day");
     list.append(empty);
   }
   body.append(list);
@@ -2238,6 +2522,8 @@ function renderAgendaEntry(item) {
   card.className = "item-card agenda-entry";
   const category = getCategory(item.kind);
   card.style.setProperty("--category-color", category.color);
+  const reminderLabel = getReminderDisplayLabel(item);
+  const dueBadge = item.dueStart ? formatDueBadge(item) : "";
   card.innerHTML = `
     <div class="item-top">
       <div class="item-icon" aria-hidden="true">${iconSvg(category.icon)}</div>
@@ -2245,18 +2531,25 @@ function renderAgendaEntry(item) {
         <p class="item-title">${escapeHtml(cleanDisplayText(item.title))}</p>
         <div class="item-meta">
           <span class="kind">${escapeHtml(getKindLabel(item.kind))}</span>
-          ${item.dueStart ? `<span>${escapeHtml(formatDateTime(item.dueStart, item.allDay))}</span>` : ""}
+          ${dueBadge ? `<span>${escapeHtml(dueBadge)}</span>` : ""}
           ${item.recurrenceRule ? "<span>wiederholt</span>" : ""}
+          ${reminderLabel ? `<span>${escapeHtml(reminderLabel)}</span>` : ""}
         </div>
+      </div>
+      <div class="chips">
+        <button class="ghost tiny-button" type="button" data-action="quick-edit">Ändern</button>
       </div>
     </div>
   `;
+  card.append(renderQuickEditPanel(item));
+  bindQuickEditTriggers(card, item);
   return card;
 }
 
 function renderItem(item) {
   const card = document.createElement("article");
-  card.className = `item-card ${item.status === "done" ? "done" : ""} ${item.pinned ? "pinned" : ""}`;
+  const dueState = getDueVisualState(item);
+  card.className = `item-card ${item.status === "done" ? "done" : ""} ${item.pinned ? "pinned" : ""} ${dueState ? `due-${dueState}` : ""}`;
   card.draggable = true;
   card.dataset.itemId = item.id;
   const category = getCategory(item.kind);
@@ -2271,8 +2564,9 @@ function renderItem(item) {
 
   const meta = [
     getKindLabel(item.kind),
-    item.dueStart ? formatDateTime(item.dueStart, item.allDay) : "",
+    item.dueStart ? formatDueBadge(item) : "",
     item.placeLabel ? item.placeLabel : "",
+    getReminderDisplayLabel(item),
   ].filter(Boolean);
   const tags = ensureItemTags(item);
   const priority = getItemPriority(item);
@@ -2294,6 +2588,9 @@ function renderItem(item) {
 	      <div class="chips">
 	        ${item.pinned ? `<span class="chip pin">Fixiert</span>` : ""}
 	        ${priority === "high" ? `<span class="chip warn">Wichtig</span>` : ""}
+          ${dueState === "overdue" ? `<span class="chip due urgent">Überfällig</span>` : ""}
+          ${dueState === "today" ? `<span class="chip due">Heute</span>` : ""}
+          ${dueState === "tomorrow" ? `<span class="chip due soft">Morgen</span>` : ""}
 	      </div>
 	    </div>
 	    ${tags.length > 1 ? `<div class="tag-list item-tags">${tags.slice(1, 4).map((tag) => `<span class="setting-chip">${escapeHtml(getKindLabel(tag))}</span>`).join("")}</div>` : ""}
@@ -2306,11 +2603,28 @@ function renderItem(item) {
                <button class="ghost icon-action" type="button" data-action="up" aria-label="Nach oben">↑</button>
                <button class="ghost icon-action" type="button" data-action="down" aria-label="Nach unten">↓</button>
                <button class="ghost" type="button" data-action="toggle">${item.status === "done" ? "Wieder öffnen" : "Erledigt"}</button>
-               <button class="ghost" type="button" data-action="edit">Bearbeiten</button>
+               <button class="ghost" type="button" data-action="quick-edit">Schnell ändern</button>
                <button class="danger" type="button" data-action="delete">Löschen</button>`
         }
 	    </div>
+      ${
+        !isDeleted && item.dueStart && state.remindersEnabled
+          ? `<div class="item-reminders">
+               <div class="item-reminder-presets">
+                 <button class="ghost tiny-button ${item.reminderDisabled ? "active" : ""}" type="button" data-reminder-preset="off">Aus</button>
+                 <button class="ghost tiny-button ${!item.reminderDisabled && Number(item.reminderOffset || 0) === 0 ? "active" : ""}" type="button" data-reminder-preset="0">Zur Zeit</button>
+                 <button class="ghost tiny-button ${!item.reminderDisabled && Number(item.reminderOffset || 0) === 15 ? "active" : ""}" type="button" data-reminder-preset="15">15 Min</button>
+                 <button class="ghost tiny-button ${!item.reminderDisabled && Number(item.reminderOffset || 0) === 60 ? "active" : ""}" type="button" data-reminder-preset="60">1 Std</button>
+                 <button class="ghost tiny-button ${!item.reminderDisabled && Number(item.reminderOffset || 0) === 1440 ? "active" : ""}" type="button" data-reminder-preset="1440">1 Tag</button>
+               </div>
+               <button class="ghost tiny-button" type="button" data-snooze="10m">In 10 Min</button>
+               <button class="ghost tiny-button" type="button" data-snooze="evening">Heute Abend</button>
+               <button class="ghost tiny-button" type="button" data-snooze="morning">Morgen früh</button>
+             </div>`
+          : ""
+      }
 	  `;
+  if (!isDeleted) card.append(renderQuickEditPanel(item));
 
   card.querySelector('[data-action="restore"]')?.addEventListener("click", () => {
     state.inboxArchiveView = "active";
@@ -2328,17 +2642,91 @@ function renderItem(item) {
     updateItem(item.id, { status: item.status === "done" ? "open" : "done" });
   });
 
-  card.querySelector('[data-action="edit"]')?.addEventListener("click", () => {
+  card.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
+    markItemDeleted(item.id);
+  });
+  card.querySelectorAll("[data-snooze]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void snoozeItem(item.id, button.dataset.snooze || "");
+    });
+  });
+  card.querySelectorAll("[data-reminder-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void setItemReminderPreset(item.id, button.dataset.reminderPreset || "");
+    });
+  });
+  if (!isDeleted) bindQuickEditTriggers(card, item);
+
+  return card;
+}
+
+function renderQuickEditPanel(item) {
+  const panel = document.createElement("div");
+  panel.className = "quick-edit-panel";
+  panel.hidden = state.quickEditItemId !== item.id;
+  const dateValue = item.dueStart ? item.dueStart.slice(0, 10) : "";
+  const timeValue = item.dueStart && !item.allDay ? item.dueStart.slice(11, 16) : "";
+  panel.innerHTML = `
+    <div class="quick-edit-head">
+      <p class="eyebrow">Schnellbearbeitung</p>
+      <button class="ghost tiny-button" type="button" data-quick-action="close">Schließen</button>
+    </div>
+    <div class="quick-edit-grid">
+      <label class="input-label" for="quick-title-${item.id}">Titel
+        <input id="quick-title-${item.id}" type="text" value="${escapeHtml(cleanDisplayText(item.title))}" />
+      </label>
+      <label class="input-label" for="quick-date-${item.id}">Datum
+        <input id="quick-date-${item.id}" type="date" value="${dateValue}" />
+      </label>
+      <label class="input-label" for="quick-time-${item.id}">Uhrzeit
+        <input id="quick-time-${item.id}" type="time" value="${timeValue}" />
+      </label>
+    </div>
+    <div class="quick-edit-actions">
+      <button class="primary" type="button" data-quick-action="save">Speichern</button>
+      <button class="ghost" type="button" data-quick-action="full">Mehr Felder</button>
+    </div>
+  `;
+  return panel;
+}
+
+function bindQuickEditTriggers(card, item) {
+  card.querySelector('[data-action="quick-edit"]')?.addEventListener("click", () => {
+    state.quickEditItemId = state.quickEditItemId === item.id ? "" : item.id;
+    renderAll();
+  });
+  card.querySelector('[data-quick-action="close"]')?.addEventListener("click", () => {
+    state.quickEditItemId = "";
+    renderAll();
+  });
+  card.querySelector('[data-quick-action="save"]')?.addEventListener("click", () => {
+    saveQuickEdit(card, item);
+  });
+  card.querySelector('[data-quick-action="full"]')?.addEventListener("click", () => {
+    state.quickEditItemId = "";
     state.currentDraft = item;
     renderReview(item);
     setView("capture");
   });
+}
 
-  card.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
-    markItemDeleted(item.id);
+function saveQuickEdit(card, item) {
+  const title = card.querySelector(`#quick-title-${item.id}`)?.value.trim() || cleanDisplayText(item.title);
+  const dateValue = card.querySelector(`#quick-date-${item.id}`)?.value || "";
+  const timeValue = card.querySelector(`#quick-time-${item.id}`)?.value || "";
+  const dueStart = dateValue ? `${dateValue}T${timeValue || "09:00"}:00` : null;
+  updateItem(item.id, {
+    title: sentenceCase(title),
+    normalizedShortNote: sentenceCase(title),
+    dueStart,
+    agendaDate: dueStart || item.agendaDate || toLocalIso(new Date()),
+    allDay: Boolean(dateValue && !timeValue),
+    snoozeUntil: null,
+    reminderDisabled: dueStart ? item.reminderDisabled : true,
   });
-
-  return card;
+  state.quickEditItemId = "";
+  if (dueStart && !item.reminderDisabled && state.remindersEnabled) void ensureReminderPermission();
+  showToast("Eintrag aktualisiert");
 }
 
 function updateItem(id, patch) {
@@ -2363,6 +2751,385 @@ function commitItems(nextItems, source = "update") {
   saveItems();
   renderAll();
   if (state.syncEnabled && state.cloudUser) void syncCloud(source);
+}
+
+function supportsNotifications() {
+  return typeof window !== "undefined" && "Notification" in window;
+}
+
+async function ensureReminderPermission() {
+  if (!state.remindersEnabled || !supportsNotifications()) return false;
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") {
+    showToast("Benachrichtigungen sind im Browser blockiert");
+    return false;
+  }
+  const permission = await Notification.requestPermission();
+  if (permission === "granted") {
+    showToast("Erinnerungen aktiviert");
+    return true;
+  }
+  showToast("Erinnerungen bleiben in der App sichtbar");
+  return false;
+}
+
+function queueReminderRefresh() {
+  window.clearTimeout(reminderRefreshHandle);
+  reminderRefreshHandle = window.setTimeout(refreshReminderSchedule, 80);
+}
+
+function clearReminderTimers() {
+  reminderTimers.forEach((timer) => window.clearTimeout(timer));
+  reminderTimers.clear();
+}
+
+function refreshReminderSchedule() {
+  clearReminderTimers();
+  if (!state.remindersEnabled) return;
+  activeItems().forEach((item) => scheduleReminderForItem(item));
+}
+
+function scheduleReminderForItem(item) {
+  if (!item.dueStart || item.reminderDisabled) return;
+  const schedule = getNextReminderSchedule(item);
+  if (!schedule) return;
+  const occurrenceKey = schedule.occurrenceAt.toISOString();
+  if (item.lastReminderOccurrence === occurrenceKey) return;
+  const now = Date.now();
+  const delay = Math.max(0, schedule.triggerAt.getTime() - now);
+  const safeDelay = Math.min(delay, 2147483647);
+  const timer = window.setTimeout(() => {
+    void fireReminder(item.id, occurrenceKey);
+  }, safeDelay);
+  reminderTimers.set(item.id, timer);
+}
+
+function getNextReminderSchedule(item, now = new Date()) {
+  if (item.reminderDisabled) return null;
+  const occurrenceAt = getNextOccurrenceDateTime(item, now);
+  if (!occurrenceAt) return null;
+  const reminderOffset = Math.max(0, Number(item.reminderOffset || 0));
+  let triggerAt = new Date(occurrenceAt.getTime() - reminderOffset * 60000);
+  if (item.snoozeUntil) {
+    const snoozeDate = new Date(item.snoozeUntil);
+    if (!Number.isNaN(snoozeDate.getTime()) && snoozeDate > triggerAt) triggerAt = snoozeDate;
+  }
+  const tooOld = now.getTime() - triggerAt.getTime() > 3600000;
+  if (triggerAt <= now && occurrenceAt >= addHours(now, -1) && !tooOld) {
+    triggerAt = new Date(now.getTime() + 1500);
+  }
+  if (occurrenceAt < addHours(now, -1) || tooOld) return null;
+  return { occurrenceAt, triggerAt };
+}
+
+function getNextOccurrenceDateTime(item, now = new Date()) {
+  const base = new Date(item.dueStart || item.agendaDate || item.createdAt);
+  if (Number.isNaN(base.getTime())) return null;
+  if (base >= now) return base;
+  if (!item.recurrenceRule) return base >= addHours(now, -1) ? base : null;
+  const hours = base.getHours();
+  const minutes = base.getMinutes();
+  for (let offset = 0; offset <= 400; offset += 1) {
+    const candidateDate = addDays(startOfDay(now), offset);
+    if (!isItemOnDate(item, candidateDate)) continue;
+    const candidate = new Date(candidateDate);
+    candidate.setHours(hours, minutes, 0, 0);
+    if (candidate >= now || candidate >= addHours(now, -1)) return candidate;
+  }
+  return null;
+}
+
+async function fireReminder(itemId, occurrenceKey) {
+  const item = state.items.find((entry) => entry.id === itemId);
+  if (!item || getLifecycleStatus(item) !== "active") return;
+  updateItem(itemId, {
+    lastReminderOccurrence: occurrenceKey,
+    lastReminderAt: new Date().toISOString(),
+    snoozeUntil: null,
+  });
+  const title = cleanDisplayText(item.title);
+  const body = item.dueStart ? `${formatDueBadge(item)} · ${getKindLabel(item.kind)}` : getKindLabel(item.kind);
+  showToast(`Erinnerung: ${title}`);
+  if (supportsNotifications() && Notification.permission === "granted") {
+    try {
+      const notification = new Notification(`Your Voice · ${title}`, { body, tag: `yourvoice-${item.id}` });
+      notification.onclick = () => {
+        window.focus();
+        setView(item.dueStart ? "agenda" : "inbox");
+      };
+    } catch {
+      // ignore browser notification errors and keep in-app reminder active
+    }
+  }
+}
+
+async function snoozeItem(id, preset) {
+  const until = getSnoozeDate(preset);
+  if (!until) return;
+  updateItem(id, { snoozeUntil: until.toISOString() });
+  if (state.remindersEnabled) await ensureReminderPermission();
+  showToast(`Erinnerung verschoben bis ${formatSnoozeLabel(until)}`);
+}
+
+async function setItemReminderPreset(id, preset) {
+  const item = state.items.find((entry) => entry.id === id);
+  if (!item || !item.dueStart) return;
+  if (preset === "off") {
+    updateItem(id, { reminderDisabled: true, snoozeUntil: null });
+    showToast("Erinnerung deaktiviert");
+    return;
+  }
+  const offset = Math.max(0, Number(preset || 0));
+  updateItem(id, { reminderDisabled: false, reminderOffset: offset, snoozeUntil: null });
+  if (state.remindersEnabled) await ensureReminderPermission();
+  showToast(`Erinnerung ${formatReminderOffset(offset).toLowerCase()}`);
+}
+
+function getSnoozeDate(preset) {
+  const now = new Date();
+  if (preset === "10m") return new Date(now.getTime() + 10 * 60000);
+  if (preset === "evening") {
+    const evening = new Date(now);
+    evening.setHours(19, 0, 0, 0);
+    if (evening <= now) evening.setDate(evening.getDate() + 1);
+    return evening;
+  }
+  if (preset === "morning") {
+    const morning = addDays(startOfDay(now), 1);
+    morning.setHours(8, 0, 0, 0);
+    return morning;
+  }
+  return null;
+}
+
+function formatReminderOffset(minutes) {
+  if (!minutes) return "Zur Zeit";
+  if (minutes < 60) return `${minutes} Minuten vorher`;
+  if (minutes === 60) return "1 Stunde vorher";
+  if (minutes < 1440) return `${Math.round(minutes / 60)} Stunden vorher`;
+  if (minutes === 1440) return "1 Tag vorher";
+  if (minutes === 20160) return "2 Wochen vorher";
+  return `${Math.round(minutes / 1440)} Tage vorher`;
+}
+
+function getReminderDisplayLabel(item) {
+  if (item.reminderDisabled) return "Ohne Erinnerung";
+  if (item.snoozeUntil) return `Schlummert bis ${formatSnoozeLabel(new Date(item.snoozeUntil))}`;
+  if (!item.dueStart || !state.remindersEnabled) return "";
+  return `Erinnerung ${formatReminderOffset(Number(item.reminderOffset || 0)).toLowerCase()}`;
+}
+
+function getDueVisualState(item, now = new Date()) {
+  if (!item?.dueStart || getLifecycleStatus(item) !== "active") return "";
+  const due = new Date(item.dueStart);
+  if (Number.isNaN(due.getTime())) return "";
+  const today = startOfDay(now);
+  const tomorrow = addDays(today, 1);
+  if (due < now && !sameDay(due, today)) return "overdue";
+  if (sameDay(due, today)) return "today";
+  if (sameDay(due, tomorrow)) return "tomorrow";
+  return "";
+}
+
+function getUrgencyCounts(items) {
+  return items.reduce(
+    (summary, item) => {
+      const state = getDueVisualState(item);
+      if (state === "overdue") summary.overdue += 1;
+      if (state === "today") summary.today += 1;
+      if (state === "tomorrow") summary.tomorrow += 1;
+      return summary;
+    },
+    { overdue: 0, today: 0, tomorrow: 0 },
+  );
+}
+
+function formatDueBadge(item, now = new Date()) {
+  if (!item?.dueStart) return "";
+  const due = new Date(item.dueStart);
+  if (Number.isNaN(due.getTime())) return "";
+  const today = startOfDay(now);
+  const tomorrow = addDays(today, 1);
+  const timeLabel = item.allDay
+    ? ""
+    : new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(due);
+  const join = (prefix) => (timeLabel ? `${prefix} · ${timeLabel}` : prefix);
+
+  if (due < now && !sameDay(due, today)) return join(`Überfällig seit ${formatShortDate(due)}`);
+  if (sameDay(due, today)) return join("Heute");
+  if (sameDay(due, tomorrow)) return join("Morgen");
+  if (due < addDays(today, 7)) {
+    const weekday = new Intl.DateTimeFormat("de-DE", { weekday: "short" }).format(due);
+    return join(weekday.replace(".", ""));
+  }
+  return join(formatShortDate(due));
+}
+
+function formatSnoozeLabel(date) {
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatRecurrenceLabel(rule) {
+  if (!rule) return "";
+  if (rule.startsWith("FREQ=DAILY")) return "Wiederholt taeglich";
+  if (rule.startsWith("FREQ=WEEKLY")) return "Wiederholt woechentlich";
+  if (rule.startsWith("FREQ=MONTHLY")) return "Wiederholt monatlich";
+  if (rule.startsWith("FREQ=YEARLY")) return "Wiederholt jaehrlich";
+  return "Wiederholt";
+}
+
+function addHours(date, amount) {
+  return new Date(date.getTime() + amount * 3600000);
+}
+
+function loadExampleNote() {
+  els.captureInput.value = EXAMPLE_NOTE;
+  setView("capture");
+  els.captureInput.focus();
+  renderReviewEmpty("Beispiel geladen.", "Du kannst die Eingabe direkt prüfen oder noch anpassen.");
+  showToast("Beispiel geladen");
+}
+
+function applyQuickCapture(mode) {
+  setView("capture");
+  const presets = {
+    task: {
+      kind: "task",
+      placeholder: "Zum Beispiel: Mama anrufen oder Rechnung zahlen",
+      toast: "Schnellerfassung für Aufgaben aktiv",
+    },
+    event: {
+      kind: "event",
+      placeholder: "Zum Beispiel: Freitag 16 Uhr Training",
+      toast: "Schnellerfassung für Termine aktiv",
+    },
+    shopping: {
+      kind: "shopping",
+      placeholder: "Zum Beispiel: Milch, Brot und Eier kaufen",
+      toast: "Schnellerfassung für Einkauf aktiv",
+    },
+    idea: {
+      kind: "idea",
+      placeholder: "Zum Beispiel: Idee für neue Website",
+      toast: "Schnellerfassung für Ideen aktiv",
+    },
+  };
+  if (mode === "voice") {
+    els.captureInput.focus();
+    showToast("Sprachnotiz startet");
+    window.setTimeout(() => toggleSpeech(), 120);
+    return;
+  }
+  const preset = presets[mode];
+  if (!preset) return;
+  state.selectedKind = preset.kind;
+  renderCategories();
+  els.captureInput.placeholder = preset.placeholder;
+  els.captureInput.focus();
+  renderReviewEmpty("Schnellerfassung aktiv.", "Dein nächster Eintrag wird direkt in diesen Bereich eingeordnet, kann aber weiterhin intelligent erweitert werden.");
+  showToast(preset.toast);
+}
+
+async function pasteFromClipboardToCapture() {
+  if (!navigator.clipboard?.readText) {
+    showToast("Zwischenablage wird in diesem Browser nicht unterstützt");
+    return;
+  }
+  try {
+    const text = (await navigator.clipboard.readText()).trim();
+    if (!text) {
+      showToast("Zwischenablage ist leer");
+      return;
+    }
+    els.captureInput.value = text;
+    setView("capture");
+    els.captureInput.focus();
+    renderReviewEmpty("Zwischenablage übernommen.", "Du kannst den Text direkt aufteilen und einordnen.");
+    showToast("Text eingefügt");
+  } catch {
+    showToast("Zwischenablage konnte nicht gelesen werden");
+  }
+}
+
+function buildContextualEmptyState(text, variant = "default") {
+  if (variant === "focus") {
+    return buildEmptyBox(text, [
+      { label: "Notiz erstellen", action: "capture" },
+      { label: "Beispiel laden", action: "example" },
+    ]);
+  }
+  if (variant === "recent") {
+    return buildEmptyBox(text, [
+      { label: "Beispiel laden", action: "example" },
+      { label: "Notiz erstellen", action: "capture" },
+    ]);
+  }
+  if (variant === "search-idle") {
+    return buildEmptyBox(text, [
+      { label: "Zur Inbox", action: "inbox" },
+      { label: "Beispiel laden", action: "example" },
+    ]);
+  }
+  if (variant === "search-empty") {
+    return buildEmptyBox(text, [
+      { label: "Filter löschen", action: "clear-search" },
+      { label: "Zur Inbox", action: "inbox" },
+    ]);
+  }
+  if (variant === "agenda-day") {
+    return buildEmptyBox(text, [
+      { label: "Termin erstellen", action: "agenda-create" },
+      { label: "Beispiel laden", action: "example" },
+    ]);
+  }
+  return buildEmptyBox(text, [{ label: "Beispiel laden", action: "example" }]);
+}
+
+function buildEmptyBox(text, actions = []) {
+  const empty = document.createElement("article");
+  empty.className = "item-card empty-card";
+  empty.innerHTML = `
+    <p class="item-raw">${escapeHtml(text)}</p>
+    ${actions.length ? `<div class="empty-actions">${actions.map((entry) => `<button class="ghost" type="button" data-empty-action="${escapeHtml(entry.action)}">${escapeHtml(entry.label)}</button>`).join("")}</div>` : ""}
+  `;
+  empty.querySelectorAll("[data-empty-action]").forEach((button) => {
+    button.addEventListener("click", () => runEmptyStateAction(button.dataset.emptyAction || ""));
+  });
+  return empty;
+}
+
+function runEmptyStateAction(action) {
+  if (action === "example") {
+    loadExampleNote();
+    return;
+  }
+  if (action === "capture") {
+    setView("capture");
+    els.captureInput.focus();
+    return;
+  }
+  if (action === "inbox") {
+    setView("inbox");
+    return;
+  }
+  if (action === "agenda-create") {
+    setView("agenda");
+    els.agendaTitleInput.focus();
+    return;
+  }
+  if (action === "clear-search") {
+    els.searchInput.value = "";
+    state.searchFilters.clear();
+    state.searchDateFilter = "any";
+    state.searchCustomDate = "";
+    state.searchPriorityFilter = "any";
+    renderSearch();
+  }
 }
 
 function sortInboxItems(items) {
@@ -2449,13 +3216,10 @@ function loadItems() {
 }
 
 function saveItems() {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(
-      state.items
-        .map((item) => canonicalizeItem({ ...item, manualOrder: item.manualOrder || new Date(item.createdAt || Date.now()).getTime() })),
-    ),
-  );
+  const items = state.items
+    .map((item) => canonicalizeItem({ ...item, manualOrder: item.manualOrder || new Date(item.createdAt || Date.now()).getTime() }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  queuePersistentWrite(INDEXED_ITEMS_KEY, items);
   saveSettings();
 }
 
@@ -2490,42 +3254,58 @@ function loadSettings() {
 }
 
 function saveSettings() {
-  localStorage.setItem(
-    SETTINGS_KEY,
-    JSON.stringify({
-      theme: state.theme,
-      accountEmail: state.accountEmail,
-      loggedIn: state.loggedIn,
-      syncEnabled: state.syncEnabled,
-      colorScheme: state.colorScheme,
-      styleMode: state.styleMode,
-      fontSize: state.fontSize,
-      compactLayout: state.compactLayout,
-      speechLang: state.speechLang,
-      micQuality: state.micQuality,
-      autoDetect: state.autoDetect,
-      recognitionLevel: state.recognitionLevel,
-      defaultCategory: state.defaultCategory,
-      customCategories: state.customCategories,
-      remindersEnabled: state.remindersEnabled,
-      dailySummary: state.dailySummary,
-      focusMode: state.focusMode,
-      privacyMode: state.privacyMode,
-      supabaseUrl: state.supabaseUrl,
-      supabaseAnonKey: state.supabaseAnonKey,
-      authStatusMessage: state.authStatusMessage,
-      lastSyncAt: state.lastSyncAt,
-      lastBackupAt: state.lastBackupAt,
-      hideDone: state.hideDone,
-      inboxGroupOrder: state.inboxGroupOrder,
-      hiddenInboxGroups: state.hiddenInboxGroups,
-      updatedAt: new Date().toISOString(),
-    }),
-  );
+  const settings = snapshotSettings();
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  queuePersistentWrite(INDEXED_SETTINGS_KEY, settings);
+}
+
+function snapshotSettings() {
+  return {
+    theme: state.theme,
+    accountEmail: state.accountEmail,
+    loggedIn: state.loggedIn,
+    syncEnabled: state.syncEnabled,
+    colorScheme: state.colorScheme,
+    styleMode: state.styleMode,
+    fontSize: state.fontSize,
+    compactLayout: state.compactLayout,
+    speechLang: state.speechLang,
+    micQuality: state.micQuality,
+    autoDetect: state.autoDetect,
+    recognitionLevel: state.recognitionLevel,
+    defaultCategory: state.defaultCategory,
+    customCategories: state.customCategories,
+    remindersEnabled: state.remindersEnabled,
+    dailySummary: state.dailySummary,
+    focusMode: state.focusMode,
+    privacyMode: state.privacyMode,
+    supabaseUrl: state.supabaseUrl,
+    supabaseAnonKey: state.supabaseAnonKey,
+    authStatusMessage: state.authStatusMessage,
+    lastSyncAt: state.lastSyncAt,
+    lastBackupAt: state.lastBackupAt,
+    lastImportedAt: state.lastImportedAt,
+    installDismissedAt: state.installDismissedAt,
+    guestModeHintDismissed: state.guestModeHintDismissed,
+    hideDone: state.hideDone,
+    inboxGroupOrder: state.inboxGroupOrder,
+    hiddenInboxGroups: state.hiddenInboxGroups,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 function exportData() {
-  const blob = new Blob([JSON.stringify({ items: state.items, exportedAt: new Date().toISOString() }, null, 2)], {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    storage: {
+      backend: state.storageBackend,
+      persisted: state.storagePersisted,
+    },
+    items: state.items.map(canonicalizeItem),
+    settings: snapshotSettings(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
@@ -2534,6 +3314,332 @@ function exportData() {
   link.download = `your-voice-export-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
+  state.lastBackupAt = payload.exportedAt;
+  state.storageWarning = "";
+  saveSettings();
+  applySettings();
+  showToast("Backup exportiert");
+}
+
+async function importDataFromFile(file) {
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const nextItems = Array.isArray(parsed?.items) ? parsed.items.map(canonicalizeItem) : null;
+    if (!nextItems) {
+      showToast("Import-Datei ungueltig");
+      return;
+    }
+    state.items = nextItems;
+    if (parsed.settings && typeof parsed.settings === "object") {
+      applyHydratedSettings(parsed.settings);
+    }
+    state.lastImportedAt = new Date().toISOString();
+    state.storageWarning = "";
+    saveItems();
+    saveSettings();
+    renderAll();
+    applySettings();
+    showToast(`Importiert: ${nextItems.length} Eintraege`);
+    if (state.syncEnabled && state.cloudUser) void syncCloud("import");
+  } catch {
+    showToast("Import fehlgeschlagen");
+  }
+}
+
+function exportCalendarIcs() {
+  const exportItems = activeItems().filter((item) => item.dueStart || item.recurrenceRule);
+  if (!exportItems.length) {
+    showToast("Keine Termine fuer .ics vorhanden");
+    return;
+  }
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Your Voice//Organizer//DE",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    ...exportItems.flatMap(buildIcsEntries),
+    "END:VCALENDAR",
+  ];
+  downloadTextFile(
+    `${foldIcsLines(lines).join("\r\n")}\r\n`,
+    `your-voice-calendar-${new Date().toISOString().slice(0, 10)}.ics`,
+    "text/calendar;charset=utf-8",
+  );
+  showToast(`${exportItems.length} Kalendereintraege exportiert`);
+}
+
+function buildIcsEntries(item) {
+  const kind = normalizeKind(item.kind);
+  const isEvent = kind === "event" || item.kind === "birthday";
+  return isEvent ? buildEventIcs(item) : buildTodoIcs(item);
+}
+
+function buildEventIcs(item) {
+  const start = new Date(item.dueStart || item.agendaDate || item.createdAt);
+  const end = item.allDay ? addDays(startOfDay(start), 1) : new Date(start.getTime() + 60 * 60000);
+  const lines = [
+    "BEGIN:VEVENT",
+    `UID:${escapeIcsText(item.id)}@yourvoice.app`,
+    `DTSTAMP:${formatUtcIcsDate(new Date(item.updatedAt || item.createdAt || Date.now()))}`,
+    item.allDay
+      ? `DTSTART;VALUE=DATE:${formatIcsDate(start)}`
+      : `DTSTART:${formatUtcIcsDate(start)}`,
+    item.allDay
+      ? `DTEND;VALUE=DATE:${formatIcsDate(end)}`
+      : `DTEND:${formatUtcIcsDate(end)}`,
+    `SUMMARY:${escapeIcsText(cleanDisplayText(item.title || "Termin"))}`,
+    `DESCRIPTION:${escapeIcsText(buildIcsDescription(item))}`,
+  ];
+  if (item.placeLabel) lines.push(`LOCATION:${escapeIcsText(item.placeLabel)}`);
+  if (item.recurrenceRule) lines.push(`RRULE:${item.recurrenceRule}`);
+  if (!item.reminderDisabled && Number(item.reminderOffset || 0) >= 0) lines.push(...buildAlarmIcs(item.reminderOffset, item.title));
+  lines.push("END:VEVENT");
+  return lines;
+}
+
+function buildTodoIcs(item) {
+  const due = item.dueStart ? new Date(item.dueStart) : null;
+  const lines = [
+    "BEGIN:VTODO",
+    `UID:${escapeIcsText(item.id)}@yourvoice.app`,
+    `DTSTAMP:${formatUtcIcsDate(new Date(item.updatedAt || item.createdAt || Date.now()))}`,
+    `SUMMARY:${escapeIcsText(cleanDisplayText(item.title || "Aufgabe"))}`,
+    `DESCRIPTION:${escapeIcsText(buildIcsDescription(item))}`,
+    `STATUS:${item.status === "done" ? "COMPLETED" : "NEEDS-ACTION"}`,
+  ];
+  if (due) {
+    lines.push(
+      item.allDay
+        ? `DUE;VALUE=DATE:${formatIcsDate(due)}`
+        : `DUE:${formatUtcIcsDate(due)}`,
+    );
+  }
+  if (item.recurrenceRule) lines.push(`RRULE:${item.recurrenceRule}`);
+  lines.push("END:VTODO");
+  return lines;
+}
+
+function buildAlarmIcs(reminderOffset, title) {
+  const minutes = Math.max(0, Number(reminderOffset || 0));
+  const trigger = formatDurationTrigger(minutes);
+  return [
+    "BEGIN:VALARM",
+    `TRIGGER:-${trigger}`,
+    "ACTION:DISPLAY",
+    `DESCRIPTION:${escapeIcsText(`Erinnerung: ${cleanDisplayText(title || "Eintrag")}`)}`,
+    "END:VALARM",
+  ];
+}
+
+function formatDurationTrigger(minutes) {
+  if (minutes % 1440 === 0) return `P${minutes / 1440}D`;
+  if (minutes % 60 === 0) return `PT${minutes / 60}H`;
+  return `PT${minutes}M`;
+}
+
+function buildIcsDescription(item) {
+  const parts = [
+    item.notes ? cleanDisplayText(item.notes).replace(/\n+/g, " | ") : "",
+    item.placeLabel ? `Ort: ${item.placeLabel}` : "",
+    item.kind ? `Typ: ${getKindLabel(item.kind)}` : "",
+  ].filter(Boolean);
+  return parts.join(" | ") || "Exportiert aus Your Voice";
+}
+
+function formatIcsDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function formatUtcIcsDate(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const hours = String(date.getUTCHours()).padStart(2, "0");
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+  const seconds = String(date.getUTCSeconds()).padStart(2, "0");
+  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+}
+
+function escapeIcsText(value = "") {
+  return String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
+}
+
+function foldIcsLines(lines) {
+  return lines.flatMap((line) => {
+    const value = String(line);
+    if (value.length <= 74) return [value];
+    const parts = [];
+    for (let index = 0; index < value.length; index += 74) {
+      const segment = value.slice(index, index + 74);
+      parts.push(index === 0 ? segment : ` ${segment}`);
+    }
+    return parts;
+  });
+}
+
+function downloadTextFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function applyHydratedSettings(settings) {
+  const fields = [
+    "theme",
+    "accountEmail",
+    "loggedIn",
+    "syncEnabled",
+    "colorScheme",
+    "styleMode",
+    "fontSize",
+    "compactLayout",
+    "speechLang",
+    "micQuality",
+    "autoDetect",
+    "recognitionLevel",
+    "defaultCategory",
+    "customCategories",
+    "remindersEnabled",
+    "dailySummary",
+    "focusMode",
+    "privacyMode",
+    "authStatusMessage",
+    "lastSyncAt",
+    "lastBackupAt",
+    "lastImportedAt",
+    "installDismissedAt",
+    "guestModeHintDismissed",
+    "hideDone",
+    "inboxGroupOrder",
+    "hiddenInboxGroups",
+  ];
+  fields.forEach((field) => {
+    if (settings[field] !== undefined) state[field] = settings[field];
+  });
+  if (!cloudConfigLocked) {
+    if (settings.supabaseUrl !== undefined) state.supabaseUrl = settings.supabaseUrl;
+    if (settings.supabaseAnonKey !== undefined) state.supabaseAnonKey = settings.supabaseAnonKey;
+  }
+}
+
+function supportsIndexedDb() {
+  return typeof indexedDB !== "undefined";
+}
+
+function openIndexedDatabase() {
+  if (!supportsIndexedDb()) return Promise.reject(new Error("indexeddb_unavailable"));
+  if (indexedDbPromise) return indexedDbPromise;
+  indexedDbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(INDEXED_DB_NAME, INDEXED_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(INDEXED_DB_STORE)) {
+        database.createObjectStore(INDEXED_DB_STORE, { keyPath: "key" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("indexeddb_open_failed"));
+  });
+  return indexedDbPromise;
+}
+
+async function readIndexedRecord(key) {
+  const database = await openIndexedDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(INDEXED_DB_STORE, "readonly");
+    const store = transaction.objectStore(INDEXED_DB_STORE);
+    const request = store.get(key);
+    request.onsuccess = () => resolve(request.result?.value);
+    request.onerror = () => reject(request.error || new Error("indexeddb_read_failed"));
+  });
+}
+
+async function writeIndexedRecord(key, value) {
+  const database = await openIndexedDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(INDEXED_DB_STORE, "readwrite");
+    const store = transaction.objectStore(INDEXED_DB_STORE);
+    const request = store.put({ key, value, updatedAt: new Date().toISOString() });
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject(request.error || new Error("indexeddb_write_failed"));
+  });
+}
+
+function queuePersistentWrite(key, value) {
+  persistenceQueue = persistenceQueue
+    .then(async () => {
+      if (!supportsIndexedDb()) return;
+      await writeIndexedRecord(key, value);
+      state.storageReady = true;
+      state.storageBackend = "indexeddb";
+    })
+    .catch(() => {
+      state.storageBackend = "localstorage";
+      state.storageWarning = "IndexedDB konnte nicht beschrieben werden.";
+    });
+  return persistenceQueue;
+}
+
+async function requestPersistentStorage() {
+  if (!navigator.storage?.persisted) return false;
+  try {
+    const alreadyPersisted = await navigator.storage.persisted();
+    if (alreadyPersisted) return true;
+    if (!navigator.storage.persist) return false;
+    return Boolean(await navigator.storage.persist());
+  } catch {
+    return false;
+  }
+}
+
+async function hydratePersistentState() {
+  if (!supportsIndexedDb()) {
+    state.storageBackend = "localstorage";
+    state.storageWarning = "IndexedDB wird in diesem Browser nicht unterstuetzt.";
+    return;
+  }
+  try {
+    const [storedItems, storedSettings, persisted] = await Promise.all([
+      readIndexedRecord(INDEXED_ITEMS_KEY),
+      readIndexedRecord(INDEXED_SETTINGS_KEY),
+      requestPersistentStorage(),
+    ]);
+    state.storagePersisted = persisted;
+    state.storageReady = true;
+    state.storageBackend = "indexeddb";
+
+    const localItems = loadItems();
+    const localSettings = loadSettings();
+    const hasIndexedItems = Array.isArray(storedItems) && storedItems.length > 0;
+    const hasIndexedSettings = storedSettings && typeof storedSettings === "object" && Object.keys(storedSettings).length > 0;
+
+    if (hasIndexedSettings) applyHydratedSettings(storedSettings);
+    if (hasIndexedItems) {
+      state.items = storedItems.map(canonicalizeItem);
+    } else if (localItems.length || Object.keys(localSettings).length) {
+      await writeIndexedRecord(INDEXED_ITEMS_KEY, localItems.map(canonicalizeItem));
+      await writeIndexedRecord(INDEXED_SETTINGS_KEY, localSettings);
+      state.items = localItems;
+      state.storageWarning = "Lokale Daten wurden in IndexedDB uebernommen.";
+    }
+  } catch (error) {
+    state.storageBackend = "localstorage";
+    state.storageReady = false;
+    state.storageWarning = error?.message || "IndexedDB nicht verfuegbar.";
+  }
 }
 
 function registerServiceWorker() {
@@ -2541,6 +3647,234 @@ function registerServiceWorker() {
   navigator.serviceWorker.register("/sw.js").catch(() => {
     els.syncStatus.textContent = "Offline ohne Cache";
   });
+}
+
+function setupInstallExperience() {
+  updateInstallFlags();
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    state.installReady = true;
+    updateInstallUi();
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    state.installReady = false;
+    state.standaloneMode = true;
+    state.installDismissedAt = "";
+    saveSettings();
+    updateInstallUi();
+    showToast("Your Voice ist jetzt als App installiert");
+  });
+}
+
+function updateInstallFlags() {
+  state.standaloneMode =
+    window.matchMedia?.("(display-mode: standalone)")?.matches || Boolean(window.navigator.standalone);
+  const ua = window.navigator.userAgent || "";
+  const isIos = /iPad|iPhone|iPod/.test(ua);
+  const isSafariLike = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  state.iosInstallHint = isIos && !state.standaloneMode && isSafariLike;
+}
+
+function updateInstallUi() {
+  updateInstallFlags();
+  const shouldSuggest =
+    !state.standaloneMode &&
+    !state.installDismissedAt &&
+    (state.installReady || state.iosInstallHint);
+  if (els.installPromptCard) els.installPromptCard.hidden = !shouldSuggest;
+  const statusText = state.standaloneMode
+    ? "Your Voice ist bereits installiert und startet app-nah."
+    : state.installReady
+      ? "Installiere die App fuer schnellere Erfassung, Offline-Basis und spaetere Push-Erinnerungen."
+      : state.iosInstallHint
+        ? "Auf dem iPhone oder iPad: Teilen → Zum Home-Bildschirm, damit Push spaeter sauber funktioniert."
+        : "Sobald dein Browser es erlaubt, kannst du Your Voice direkt als App installieren.";
+  if (els.installHintText) els.installHintText.textContent = statusText;
+  if (els.installStatusText) els.installStatusText.textContent = statusText;
+  const buttonDisabled = state.standaloneMode || (!state.installReady && !state.iosInstallHint);
+  if (els.installAppButton) els.installAppButton.disabled = buttonDisabled;
+  if (els.installSettingsButton) els.installSettingsButton.disabled = buttonDisabled;
+  const buttonLabel = state.standaloneMode ? "Bereits installiert" : "App installieren";
+  if (els.installAppButton) els.installAppButton.textContent = buttonLabel;
+  if (els.installSettingsButton) els.installSettingsButton.textContent = buttonLabel;
+}
+
+async function promptInstallApp() {
+  updateInstallFlags();
+  if (state.standaloneMode) {
+    showToast("Your Voice ist bereits installiert");
+    return;
+  }
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice.catch(() => null);
+    deferredInstallPrompt = null;
+    state.installReady = false;
+    if (choice?.outcome === "accepted") {
+      showToast("Installationsdialog geoeffnet");
+    } else {
+      showToast("Installation spaeter moeglich");
+    }
+    updateInstallUi();
+    return;
+  }
+  if (state.iosInstallHint) {
+    showToast("In Safari: Teilen und dann Zum Home-Bildschirm waehlen");
+    return;
+  }
+  showToast("Installation ist in diesem Browser gerade nicht verfuegbar");
+}
+
+function dismissInstallPrompt() {
+  state.installDismissedAt = new Date().toISOString();
+  saveSettings();
+  updateInstallUi();
+  showToast("Installationshinweis ausgeblendet");
+}
+
+function updateGuestModeUi() {
+  if (!els.guestModeCard) return;
+  const isGuest = !state.loggedIn;
+  const shouldShow = isGuest && !state.guestModeHintDismissed;
+  els.guestModeCard.hidden = !shouldShow;
+  if (!shouldShow) return;
+
+  const activeCount = activeItems().length;
+  const latestItem = [...state.items]
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0];
+  const latestLabel = latestItem ? formatDateTime(latestItem.updatedAt || latestItem.createdAt, false) : "";
+  const safetyLevel = getGuestSafetyLevel(activeCount);
+  const primaryText = state.syncEnabled && state.cloudUser
+    ? "Deine Daten werden bereits zwischen Geräten synchronisiert."
+    : state.storageReady
+      ? state.storagePersisted
+        ? "Deine Einträge werden lokal in IndexedDB gespeichert. Backup und Sync kannst du jederzeit später ergänzen."
+        : "Deine Einträge werden lokal im Browser gespeichert. Ein Backup ist sinnvoll, wenn du sie zusätzlich absichern willst."
+      : "Deine Einträge bleiben lokal auf diesem Gerät, bis der Speicher vollständig vorbereitet ist.";
+  if (els.guestModeText) els.guestModeText.textContent = primaryText;
+
+  const meta = [];
+  if (state.storageReady) meta.push(state.storagePersisted ? "Lokal gesichert" : "Lokal aktiv");
+  if (state.lastBackupAt) meta.push("Backup vorhanden");
+  else meta.push("Noch kein Backup");
+  if (state.syncEnabled && state.cloudUser) meta.push("Sync aktiv");
+  else meta.push("Ohne Konto nutzbar");
+  if (latestLabel) meta.push(`Zuletzt geändert ${latestLabel}`);
+  if (els.guestModeMeta) {
+    els.guestModeMeta.replaceChildren(
+      ...meta.map((label, index) => chip(label, label.includes("kein") ? "warn" : index === 0 ? "ok" : "")),
+    );
+  }
+  if (els.guestBackupNowButton) {
+    els.guestBackupNowButton.hidden = Boolean(state.lastBackupAt);
+  }
+  if (els.guestModeChecklist) {
+    const checklist = [
+      {
+        title: activeCount ? `${activeCount} Einträge lokal gespeichert` : "Bereit für deinen ersten Eintrag",
+        text: activeCount
+          ? "Deine aktuellen Einträge liegen bereits auf diesem Gerät und bleiben auch ohne Konto nutzbar."
+          : "Sobald du etwas speicherst, bleibt es lokal auf diesem Gerät erhalten.",
+        ok: activeCount > 0,
+      },
+      {
+        title: state.lastBackupAt ? "Backup bereits erstellt" : `Backup ${safetyLevel === "warn" ? "empfohlen" : "optional"}`,
+        text: state.lastBackupAt
+          ? `Letztes Backup: ${formatDateTime(state.lastBackupAt, false)}.`
+          : safetyLevel === "warn"
+            ? "Du nutzt die App schon aktiv. Ein Backup gibt dir spürbar mehr Ruhe."
+            : "Für die ersten Schritte reicht lokal speichern völlig aus. Ein Backup ist später mit einem Klick möglich.",
+        ok: Boolean(state.lastBackupAt),
+      },
+      {
+        title: state.syncEnabled && state.cloudUser ? "Sync zwischen Geräten aktiv" : "Sync erst dann, wenn es sich lohnt",
+        text: state.syncEnabled && state.cloudUser
+          ? "Deine Einträge können jetzt auf mehreren Geräten auftauchen."
+          : "Ein Konto brauchst du erst, wenn du Backup und Sync zwischen Geräten wirklich möchtest.",
+        ok: Boolean(state.syncEnabled && state.cloudUser),
+      },
+    ];
+    els.guestModeChecklist.replaceChildren(...checklist.map(renderGuestCheckItem));
+  }
+}
+
+function getGuestSafetyLevel(activeCount) {
+  if (state.lastBackupAt || (state.syncEnabled && state.cloudUser)) return "safe";
+  if (activeCount >= 3) return "warn";
+  return "calm";
+}
+
+function renderGuestCheckItem(item) {
+  const card = document.createElement("div");
+  card.className = `guest-check-item ${item.ok ? "ok" : "warn"}`;
+  card.innerHTML = `
+    <span class="guest-check-mark" aria-hidden="true">${item.ok ? "✓" : "!"}</span>
+    <div>
+      <strong>${escapeHtml(item.title)}</strong>
+      <span>${escapeHtml(item.text)}</span>
+    </div>
+  `;
+  return card;
+}
+
+function openSettingsPanel(target) {
+  setView("settings");
+  const appPanel = document.querySelector("#appOfflinePanel");
+  const syncPanel = document.querySelector("#cloudSetupPanel");
+  const privacyPanel = document.querySelector("#privacyPanel");
+  if (target === "sync" && syncPanel) syncPanel.open = true;
+  if (target === "privacy" && privacyPanel) privacyPanel.open = true;
+  if (appPanel) appPanel.open = true;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function handleIncomingLaunchContext() {
+  const url = new URL(window.location.href);
+  const search = url.searchParams;
+  const sharedText = getSharedCaptureText(search);
+  const shortcut = search.get("source");
+  let handled = false;
+
+  if (sharedText) {
+    els.captureInput.value = sharedText;
+    state.activeView = "capture";
+    const draft = parseGermanOrganizerText(sharedText, state.selectedKind);
+    state.currentDraft = draft;
+    renderReview(draft);
+    showToast("Geteilter Text uebernommen");
+    handled = true;
+  } else if (shortcut === "shortcut-note") {
+    setView("capture");
+    els.captureInput.focus();
+    showToast("Bereit fuer eine neue Notiz");
+    handled = true;
+  } else if (shortcut === "shortcut-voice") {
+    setView("capture");
+    els.captureInput.focus();
+    showToast("Sprachnotiz wird vorbereitet");
+    window.setTimeout(() => toggleSpeech(), 120);
+    handled = true;
+  }
+
+  if (handled) {
+    search.delete("share-target");
+    search.delete("title");
+    search.delete("text");
+    search.delete("url");
+    search.delete("source");
+    const next = `${url.pathname}${search.toString() ? `?${search.toString()}` : ""}${url.hash}`;
+    window.history.replaceState({}, "", next);
+  }
+}
+
+function getSharedCaptureText(search) {
+  if (!search.get("share-target")) return "";
+  const parts = [search.get("title"), search.get("text"), search.get("url")]
+    .map((value) => cleanDisplayText(value || "").trim())
+    .filter(Boolean);
+  return parts.join("\n");
 }
 
 function chip(label, variant = "") {

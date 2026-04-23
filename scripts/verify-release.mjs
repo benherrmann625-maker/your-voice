@@ -14,6 +14,7 @@ const app = read("app.js");
 const html = read("index.html");
 const css = read("styles.css");
 const sw = read("sw.js");
+const manifest = read("manifest.webmanifest");
 const goldset = JSON.parse(read("qa-nlu-goldset.json"));
 
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "app.js")], {
@@ -65,6 +66,31 @@ check("custom category patterns", app.includes("generateCustomCategoryPatterns")
 check("single source helpers", app.includes("activeItems()") && app.includes("doneItems()") && app.includes("deletedItems()") && app.includes("canonicalizeItem"));
 check("bracket cleanup", app.includes("cleanDisplayText") && app.includes("replace(/\\[([^\\]]+)\\]/g"));
 check("contact settings", html.includes("sendContactButton") && app.includes("sendContactMessage"));
+check("indexeddb storage", app.includes("INDEXED_DB_NAME") && app.includes("hydratePersistentState") && app.includes("openIndexedDatabase"));
+check("backup import", html.includes("importButton") && html.includes("importFileInput") && app.includes("importDataFromFile"));
+check("storage transparency", html.includes("localStorageNote") && app.includes("storagePersisted") && app.includes("snapshotSettings"));
+check("reminder system", html.includes("agendaReminderInput") && app.includes("ensureReminderPermission") && app.includes("scheduleReminderForItem") && app.includes("Notification.requestPermission"));
+check("reminder quick edit", app.includes("setItemReminderPreset") && app.includes('data-reminder-preset="15"') && app.includes("reminderDisabled"));
+check("snooze actions", app.includes("snoozeItem") && app.includes('data-snooze="10m"') && app.includes("formatSnoozeLabel"));
+check("inline quick edit", app.includes("renderQuickEditPanel") && app.includes("saveQuickEdit") && app.includes('data-action="quick-edit"') && css.includes(".quick-edit-panel"));
+check("due highlighting", app.includes("getDueVisualState") && app.includes("getUrgencyCounts") && css.includes(".item-card.due-overdue") && css.includes(".chip.due"));
+check("home focus view", html.includes("focusList") && app.includes("renderHomeFocus") && app.includes("getHomeFocusItems") && css.includes(".focus-section"));
+check("quick capture flow", html.includes("data-quick-capture=\"task\"") && html.includes("pasteCaptureButton") && app.includes("applyQuickCapture") && app.includes("pasteFromClipboardToCapture"));
+check("guest mode guidance", html.includes("guestModeCard") && app.includes("updateGuestModeUi") && app.includes("openSettingsPanel") && css.includes(".guest-mode-card"));
+check("aha review guidance", app.includes("buildAhaHeadline") && app.includes("buildAhaText") && css.includes(".aha-panel"));
+check("clearer capture cta", html.includes('id="parseButton"') && html.includes("Aufteilen und einordnen"));
+check("example note flow", html.includes("loadExampleButton") && app.includes("EXAMPLE_NOTE") && app.includes("loadExampleNote"));
+check("interactive empty states", app.includes("buildContextualEmptyState") && app.includes("runEmptyStateAction") && css.includes(".empty-actions"));
+check("calendar ics export", html.includes("calendarExportButton") && app.includes("BEGIN:VCALENDAR") && app.includes("buildEventIcs") && app.includes("buildTodoIcs"));
+check("daily summary card", html.includes("dailySummaryToggle") && app.includes("buildDailySummaryCard") && app.includes("formatDueBadge") && css.includes(".summary-card"));
+check(
+  "pwa install flow",
+  html.includes("installAppButton") &&
+    app.includes("beforeinstallprompt") &&
+    app.includes("handleIncomingLaunchContext") &&
+    manifest.includes('"share_target"') &&
+    manifest.includes('"shortcuts"'),
+);
 check("tips collapsed by default", !html.includes('<details class="settings-panel" open>\n              <summary>Wie sprechen</summary>'));
 check("cache version advanced", /your-voice-v\d+/.test(sw));
 check("goldset has release examples", goldset.length >= 19);

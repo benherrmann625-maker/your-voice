@@ -53,7 +53,7 @@
         </nav>
 
         <div class="sidebar-footer">
-          <p id="storageStatus">Local-first. Sync bereit.</p>
+          <p id="storageStatus">Lokale Daten werden vorbereitet.</p>
         </div>
       </aside>
 
@@ -96,9 +96,51 @@
                 placeholder="Sag oder schreibe einen Gedanken, eine Aufgabe, einen Termin oder eine Einkaufsliste."
               ></textarea>
 
+              <div class="quick-capture-bar" aria-label="Schnellerfassung">
+                <button class="ghost tiny-button" type="button" data-quick-capture="task">Aufgabe</button>
+                <button class="ghost tiny-button" type="button" data-quick-capture="event">Termin</button>
+                <button class="ghost tiny-button" type="button" data-quick-capture="shopping">Einkauf</button>
+                <button class="ghost tiny-button" type="button" data-quick-capture="idea">Idee</button>
+                <button class="ghost tiny-button" type="button" data-quick-capture="voice">Sprachnotiz</button>
+                <button class="ghost tiny-button" id="pasteCaptureButton" type="button">Aus Zwischenablage</button>
+              </div>
+
               <div class="capture-actions">
-                <button class="primary" id="parseButton" type="button">Strukturieren</button>
+                <button class="primary" id="parseButton" type="button">Aufteilen und einordnen</button>
+                <button class="ghost" id="loadExampleButton" type="button">Beispiel laden</button>
                 <button class="ghost" id="clearInputButton" type="button">Leeren</button>
+              </div>
+
+              <div class="install-prompt-card" id="installPromptCard" hidden>
+                <div>
+                  <p class="eyebrow">Schneller zugreifen</p>
+                  <h3>Your Voice als App nutzen</h3>
+                  <p class="settings-note" id="installHintText">
+                    Installiere die Web-App fuer schnellere Erfassung, Offline-Basis und spaetere Push-Erinnerungen.
+                  </p>
+                </div>
+                <div class="install-actions">
+                  <button class="primary" id="installAppButton" type="button">App installieren</button>
+                  <button class="ghost" id="dismissInstallPromptButton" type="button">Spaeter</button>
+                </div>
+              </div>
+
+              <div class="guest-mode-card" id="guestModeCard">
+                <div>
+                  <p class="eyebrow">Gastmodus</p>
+                  <h3>Direkt loslegen, ohne Konto</h3>
+                  <p class="settings-note" id="guestModeText">
+                    Deine Einträge werden lokal auf diesem Gerät gespeichert. Backup und Sync bleiben optional.
+                  </p>
+                </div>
+                <div class="guest-mode-meta" id="guestModeMeta"></div>
+                <div class="guest-mode-checklist" id="guestModeChecklist"></div>
+                <div class="install-actions">
+                  <button class="primary" id="guestBackupNowButton" type="button">Jetzt Backup sichern</button>
+                  <button class="ghost" id="openBackupButton" type="button">Backup ansehen</button>
+                  <button class="ghost" id="openSyncSettingsButton" type="button">Sync später aktivieren</button>
+                  <button class="ghost" id="dismissGuestCardButton" type="button">Ausblenden</button>
+                </div>
               </div>
             </div>
 
@@ -110,6 +152,18 @@
               </div>
             </aside>
           </div>
+
+          <section class="focus-section" aria-labelledby="focusTitle">
+            <div class="list-toolbar">
+              <div>
+                <p class="eyebrow">Heute</p>
+                <h3 id="focusTitle">Im Fokus</h3>
+              </div>
+              <button class="ghost" type="button" data-view-link="agenda">Agenda öffnen</button>
+            </div>
+            <div class="focus-summary" id="focusSummary"></div>
+            <div class="item-list compact" id="focusList"></div>
+          </section>
 
           <details class="recent-section" aria-labelledby="recentTitle">
             <summary class="list-toolbar">
@@ -164,6 +218,14 @@
               </label>
               <label class="input-label" for="agendaTimeInput">Uhrzeit
                 <input id="agendaTimeInput" type="time" />
+              </label>
+              <label class="input-label" for="agendaReminderInput">Erinnerung
+                <select id="agendaReminderInput">
+                  <option value="0">Zur Zeit</option>
+                  <option value="15">15 Minuten vorher</option>
+                  <option value="60">1 Stunde vorher</option>
+                  <option value="1440">1 Tag vorher</option>
+                </select>
               </label>
               <label class="input-label" for="agendaRepeatInput">Wiederholung
                 <select id="agendaRepeatInput">
@@ -230,7 +292,7 @@
 
         <section class="view" id="tipsView" aria-labelledby="viewTitle">
           <div class="settings-stack">
-            <details class="settings-panel">
+            <details class="settings-panel" id="appOfflinePanel">
               <summary>Wie sprechen</summary>
               <ul class="simple-list">
                 <li>Klar und natürlich sprechen</li>
@@ -240,7 +302,7 @@
                 <li>Keine Befehle nötig, normale Sprache reicht</li>
               </ul>
             </details>
-            <details class="settings-panel">
+            <details class="settings-panel" id="privacyPanel">
               <summary>Gute Beispiele</summary>
               <ul class="simple-list">
                 <li>Morgen 14 Uhr Zahnarzt</li>
@@ -287,6 +349,25 @@
 
         <section class="view" id="settingsView" aria-labelledby="viewTitle">
           <div class="settings-stack">
+            <details class="settings-panel">
+              <summary>App & Offline</summary>
+              <div class="cloud-setup-card install-settings-card">
+                <p class="eyebrow">PWA</p>
+                <h3>Schneller auf Your Voice zugreifen</h3>
+                <p class="settings-note" id="installStatusText">
+                  Installiere die App fuer einen kuerzeren Weg zur Erfassung und eine bessere Reminder-Basis.
+                </p>
+              </div>
+              <div class="settings-actions">
+                <button class="primary" id="installSettingsButton" type="button">App installieren</button>
+              </div>
+              <ul class="simple-list compact-help">
+                <li>Nach der Installation wirkt Your Voice app-naher und bleibt schneller erreichbar.</li>
+                <li>Benachrichtigungen fragen wir erst an, wenn du wirklich einen Reminder setzt.</li>
+                <li>Teilen aus anderen Apps und Kurzbefehle am App-Symbol sind vorbereitet.</li>
+              </ul>
+            </details>
+
             <details class="settings-panel">
               <summary>Login</summary>
               <label class="input-label" for="emailInput">E-Mail</label>
@@ -352,7 +433,12 @@
                   <li>Ohne eigenes SMTP sendet Supabase nur eingeschränkt.</li>
                 </ul>
               </details>
-              <button class="ghost" id="exportButton" type="button">Daten sichern</button>
+              <div class="settings-actions">
+                <button class="ghost" id="exportButton" type="button">Backup exportieren</button>
+                <button class="ghost" id="importButton" type="button">Backup importieren</button>
+                <button class="ghost" id="calendarExportButton" type="button">Kalender exportieren (.ics)</button>
+              </div>
+              <input id="importFileInput" type="file" accept="application/json,.json" hidden />
             </details>
 
             <details class="settings-panel">
@@ -445,8 +531,9 @@
                   <option>Cloud optional</option>
                 </select>
               </div>
-              <button class="ghost" id="backupButton" type="button">Backup vorbereiten</button>
-              <p class="settings-note">Lokale Speicherung ist aktiv. Cloud Sync bleibt optional.</p>
+              <button class="ghost" id="backupButton" type="button">Backup exportieren</button>
+              <p class="settings-note" id="localStorageNote">IndexedDB sichert deine Daten lokal im Browser. Cloud Sync bleibt optional.</p>
+              <p class="settings-note" id="backupStatusText">Noch kein Backup erstellt.</p>
               <button class="danger" id="deleteAllButton" type="button">Lokale Daten löschen</button>
             </details>
 
