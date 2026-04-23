@@ -1,0 +1,110 @@
+[
+  {
+    "text": "Deutsch lernen",
+    "primary": "school",
+    "tags": ["school", "task"]
+  },
+  {
+    "text": "Döner essen mit Oma und Opa",
+    "primary": "family",
+    "tags": ["family", "food", "event"]
+  },
+  {
+    "text": "Brot kaufen",
+    "primary": "shopping",
+    "tags": ["shopping", "task"]
+  },
+  {
+    "text": "Oma und Opa treffen um 12:30 Uhr",
+    "primary": "family",
+    "tags": ["family", "event"],
+    "time": "12:30"
+  },
+  {
+    "text": "Freitag um 16 Uhr Training",
+    "primary": "event",
+    "tags": ["event", "sport"],
+    "time": "16:00"
+  },
+  {
+    "text": "Morgen 8 Uhr Mathe lernen",
+    "primary": "school",
+    "tags": ["school", "task", "event"],
+    "time": "08:00"
+  },
+  {
+    "text": "Miete am ersten zahlen",
+    "primary": "finance",
+    "tags": ["finance", "task"]
+  },
+  {
+    "text": "Idee für neue Website",
+    "primary": "idea",
+    "tags": ["idea"]
+  },
+  {
+    "text": "Ich muss morgen mit dem Hund Gassi gehen",
+    "primary": "task",
+    "tags": ["task"],
+    "title": "Mit dem Hund Gassi gehen"
+  },
+  {
+    "text": "Vielleicht sollte ich mal einkaufen gehen",
+    "primary": "shopping",
+    "tags": ["shopping"],
+    "title": "Einkaufen"
+  },
+  {
+    "text": "Übermorgen 12:30 Uhr Oma und Opa treffen",
+    "primary": "family",
+    "tags": ["family", "event"],
+    "time": "12:30"
+  },
+  {
+    "text": "Jeden Montag Kuchen backen",
+    "primary": "food",
+    "tags": ["food", "event"],
+    "recurrence": "weekly"
+  },
+  {
+    "text": "Rechnung dringend erledigen",
+    "primary": "finance",
+    "tags": ["finance", "task"],
+    "priority": "high"
+  },
+  {
+    "text": "Morgen 17 Uhr Steuerunterlagen machen",
+    "primary": "event",
+    "tags": ["event", "task"],
+    "time": "17:00"
+  },
+  {
+    "text": "In drei Tagen Mama anrufen",
+    "primary": "family",
+    "tags": ["family", "task", "event"],
+    "dateOffsetDays": 3
+  },
+  {
+    "text": "Nächste Woche Freitag Bio-Abi lernen",
+    "primary": "school",
+    "tags": ["school", "task", "event"],
+    "date": "next-week-friday"
+  },
+  {
+    "text": "Alle drei Tage Pflanzen gießen",
+    "primary": "task",
+    "tags": ["task", "event"],
+    "recurrence": "FREQ=DAILY;INTERVAL=3"
+  },
+  {
+    "text": "Mit Oma treffen",
+    "primary": "family",
+    "tags": ["family", "event"]
+  },
+  {
+    "text": "Fitness Training morgen",
+    "primary": "custom-fitness",
+    "tags": ["custom-fitness", "sport", "event"],
+    "customCategory": "Fitness"
+  }
+]

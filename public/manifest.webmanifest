@@ -1,0 +1,17 @@
+{
+  "name": "Your Voice Organizer",
+  "short_name": "Your Voice",
+  "description": "Premium Voice Organizer mit deutschem Regelparser und Review-Flow.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8f3",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

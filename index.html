@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Your Voice Organizer</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <rect x="14" y="9" width="12" height="22" rx="6"></rect>
+              <path d="M10 23c0 7 4.8 12 10 12s10-5 10-12"></path>
+              <path d="M20 35v5M16 40h8M29 15l4 4 7-8"></path>
+            </svg>
+          </div>
+          <div>
+            <p class="eyebrow">Premium Organizer</p>
+            <h1>Your <span>Voice</span></h1>
+          </div>
+        </div>
+
+        <nav class="tabs" aria-label="Hauptbereiche">
+          <button class="tab active" data-view="capture" type="button">
+            <span aria-hidden="true" data-nav-icon="voice"></span>
+            Notiz erstellen
+          </button>
+          <button class="tab" data-view="agenda" type="button">
+            <span aria-hidden="true" data-nav-icon="calendar"></span>
+            Agenda
+          </button>
+          <button class="tab" data-view="inbox" type="button">
+            <span aria-hidden="true" data-nav-icon="inbox"></span>
+            Inbox
+          </button>
+          <button class="tab" data-view="search" type="button">
+            <span aria-hidden="true" data-nav-icon="search"></span>
+            Suche
+          </button>
+          <button class="tab" data-view="tips" type="button">
+            <span aria-hidden="true" data-nav-icon="spark"></span>
+            Tipps
+          </button>
+          <button class="tab" data-view="settings" type="button">
+            <span aria-hidden="true" data-nav-icon="settings"></span>
+            Einstellungen
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <p id="storageStatus">Local-first. Sync bereit.</p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="topbar">
+          <div>
+            <p class="eyebrow">Voice Organizer</p>
+            <h2 id="viewTitle">Schnell erfassen</h2>
+          </div>
+          <div class="status-pill" id="syncStatus">
+            <span aria-hidden="true"></span>
+            Offline bereit
+          </div>
+          <button class="icon-button" id="themeButton" type="button" aria-label="Darstellung wechseln">
+            <span aria-hidden="true">◐</span>
+          </button>
+        </section>
+
+        <section class="view active" id="captureView" aria-labelledby="viewTitle">
+          <div class="capture-layout">
+            <div class="capture-panel">
+              <div class="mic-zone">
+                <div class="capture-kicker">
+                  <p class="eyebrow">Your Voice</p>
+                  <h3>Sprich jetzt etwas ein.</h3>
+                </div>
+                <button class="mic-button" id="micButton" type="button" aria-label="Sprache aufnehmen">
+                  <span class="mic-icon" aria-hidden="true"></span>
+                </button>
+                <div class="wave" id="wave" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <p id="micHint">Tippe und sprich frei. Du kannst auch direkt schreiben.</p>
+              </div>
+
+              <label class="input-label" for="captureInput">Was soll ich festhalten?</label>
+              <textarea
+                id="captureInput"
+                rows="6"
+                placeholder="Sag oder schreibe einen Gedanken, eine Aufgabe, einen Termin oder eine Einkaufsliste."
+              ></textarea>
+
+              <div class="capture-actions">
+                <button class="primary" id="parseButton" type="button">Strukturieren</button>
+                <button class="ghost" id="clearInputButton" type="button">Leeren</button>
+              </div>
+            </div>
+
+            <aside class="review-panel" id="reviewPanel" aria-live="polite">
+              <div class="empty-state">
+                <p class="eyebrow">Review</p>
+                <h3>Bereit.</h3>
+                <p>Deine nächste Eingabe erscheint hier ganz kurz zur Bestätigung.</p>
+              </div>
+            </aside>
+          </div>
+
+          <details class="recent-section" aria-labelledby="recentTitle">
+            <summary class="list-toolbar">
+              <div>
+                <p class="eyebrow">Zuletzt</p>
+                <h3 id="recentTitle">Letzte Einträge</h3>
+              </div>
+              <button class="ghost" type="button" data-view-link="inbox">Alle ansehen</button>
+            </summary>
+            <div class="item-list compact" id="recentList"></div>
+          </details>
+        </section>
+
+        <section class="view" id="inboxView" aria-labelledby="viewTitle">
+          <div class="list-toolbar">
+            <div>
+              <p class="eyebrow">Offene Gedanken</p>
+              <h3>Inbox</h3>
+            </div>
+            <div class="toolbar-actions">
+              <button class="ghost" id="addInboxCategoryButton" type="button">+ Bereich hinzufügen</button>
+            </div>
+          </div>
+          <div class="item-list" id="inboxList"></div>
+          <div class="archive-actions" aria-label="Archivansichten">
+            <button class="ghost tiny-button" id="showDoneButton" type="button">Erledigt</button>
+            <button class="ghost tiny-button" id="showDeletedButton" type="button">Gelöscht</button>
+          </div>
+        </section>
+
+        <section class="view" id="agendaView" aria-labelledby="viewTitle">
+          <div class="list-toolbar">
+            <div>
+              <p class="eyebrow">Agenda</p>
+              <h3>Dein Überblick</h3>
+            </div>
+            <div class="segmented" aria-label="Kalenderansicht">
+              <button class="segment active" data-calendar-view="month" type="button">Monat</button>
+              <button class="segment" data-calendar-view="week" type="button">Woche</button>
+              <button class="segment" data-calendar-view="day" type="button">Tag</button>
+            </div>
+          </div>
+          <div class="agenda-metrics" id="agendaMetrics"></div>
+          <details class="agenda-create-panel">
+            <summary>Termin erstellen</summary>
+            <div class="agenda-create-grid">
+              <label class="input-label" for="agendaTitleInput">Inhalt
+                <input id="agendaTitleInput" type="text" placeholder="Kuchen backen" />
+              </label>
+              <label class="input-label" for="agendaDateInput">Datum
+                <input id="agendaDateInput" type="date" />
+              </label>
+              <label class="input-label" for="agendaTimeInput">Uhrzeit
+                <input id="agendaTimeInput" type="time" />
+              </label>
+              <label class="input-label" for="agendaRepeatInput">Wiederholung
+                <select id="agendaRepeatInput">
+                  <option value="none">Einmalig</option>
+                  <option value="daily">Täglich</option>
+                  <option value="weekly">Wöchentlich</option>
+                  <option value="monthly">Monatlich</option>
+                  <option value="yearly">Jährlich</option>
+                  <option value="custom">Frei formuliert</option>
+                </select>
+              </label>
+              <label class="input-label repeat-custom repeat-pattern" for="repeatTextInput">Wiederholung formulieren
+                <input id="repeatTextInput" type="text" placeholder="alle 3 Tage oder jeden Montag" />
+              </label>
+              <button class="primary create-event-button" id="createAgendaEventButton" type="button">+ Termin erstellen</button>
+            </div>
+          </details>
+          <div class="calendar-shell">
+            <div class="calendar-head">
+              <button class="icon-button" id="prevMonthButton" type="button" aria-label="Vorheriger Monat">‹</button>
+              <h3 id="calendarTitle">Monat</h3>
+              <button class="icon-button" id="nextMonthButton" type="button" aria-label="Nächster Monat">›</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+            <aside class="day-panel" id="dayPanel"></aside>
+          </div>
+        </section>
+
+        <section class="view" id="searchView" aria-labelledby="viewTitle">
+          <div class="search-panel">
+            <div class="search-head">
+              <label class="input-label" for="searchInput">Einträge durchsuchen</label>
+              <button class="ghost filter-toggle" id="filterToggleButton" type="button">Filter</button>
+            </div>
+            <input id="searchInput" type="search" placeholder="Suche nach Titel, Notiz, Ort oder Rohtext" />
+            <div class="filter-panel" id="filterPanel" hidden>
+              <div class="filter-row">
+                <label class="input-label" for="searchDateFilter">Datum
+                  <select id="searchDateFilter">
+                    <option value="any">Alle</option>
+                    <option value="today">Heute</option>
+                    <option value="tomorrow">Morgen</option>
+                    <option value="week">Diese Woche</option>
+                    <option value="custom">Bestimmter Tag</option>
+                  </select>
+                </label>
+                <label class="input-label" for="searchCustomDateInput">Tag
+                  <input id="searchCustomDateInput" type="date" />
+                </label>
+                <label class="input-label" for="searchPriorityFilter">Wichtigkeit
+                  <select id="searchPriorityFilter">
+                    <option value="any">Alle</option>
+                    <option value="high">Hoch</option>
+                    <option value="medium">Mittel</option>
+                    <option value="low">Niedrig</option>
+                  </select>
+                </label>
+              </div>
+              <div class="filter-chips" id="searchFilterChips" aria-label="Suchfilter"></div>
+            </div>
+          </div>
+          <div class="item-list" id="searchList"></div>
+        </section>
+
+        <section class="view" id="tipsView" aria-labelledby="viewTitle">
+          <div class="settings-stack">
+            <details class="settings-panel">
+              <summary>Wie sprechen</summary>
+              <ul class="simple-list">
+                <li>Klar und natürlich sprechen</li>
+                <li>Möglichst ein Gedanke pro Aufnahme</li>
+                <li>Bei Aufgaben direkt die Handlung nennen</li>
+                <li>Bei Terminen Datum und Uhrzeit nennen</li>
+                <li>Keine Befehle nötig, normale Sprache reicht</li>
+              </ul>
+            </details>
+            <details class="settings-panel">
+              <summary>Gute Beispiele</summary>
+              <ul class="simple-list">
+                <li>Morgen 14 Uhr Zahnarzt</li>
+                <li>Deutsch Abi lernen</li>
+                <li>Mit Oma und Opa Döner essen</li>
+                <li>Brot und Milch kaufen</li>
+                <li>Freitag 16 Uhr Fußballtraining</li>
+              </ul>
+            </details>
+            <details class="settings-panel">
+              <summary>Was erkannt wird</summary>
+              <ul class="simple-list">
+                <li>Aufgaben und To-dos</li>
+                <li>Termine und Erinnerungen</li>
+                <li>Einkäufe und Essen</li>
+                <li>Familienaktivitäten</li>
+                <li>Schule, Lernen und Prüfungen</li>
+                <li>Ideen, Finanzen und persönliche Notizen</li>
+              </ul>
+            </details>
+            <details class="settings-panel">
+              <summary>Erkennung verbessern</summary>
+              <ul class="simple-list">
+                <li>Vollständige Formulierungen helfen</li>
+                <li>Uhrzeiten deutlich nennen</li>
+                <li>Datum nennen, wenn etwas in die Agenda soll</li>
+                <li>Themen nicht zu stark vermischen</li>
+                <li>Kurze Aussagen funktionieren oft am besten</li>
+              </ul>
+            </details>
+            <details class="settings-panel">
+              <summary>Alltagssituationen</summary>
+              <ul class="simple-list">
+                <li>Schule: Mathe lernen, Hausaufgaben, Abi vorbereiten</li>
+                <li>Familie: Oma besuchen, Mama anrufen, Treffen planen</li>
+                <li>Einkauf: Brot, Milch, Eier kaufen</li>
+                <li>Arzttermine: Freitag 10 Uhr Zahnarzt</li>
+                <li>Freizeit: Samstag 16 Uhr Training</li>
+                <li>Finanzen: Miete zahlen, Rechnung prüfen</li>
+              </ul>
+            </details>
+          </div>
+        </section>
+
+        <section class="view" id="settingsView" aria-labelledby="viewTitle">
+          <div class="settings-stack">
+            <details class="settings-panel">
+              <summary>Login</summary>
+              <label class="input-label" for="emailInput">E-Mail</label>
+              <input id="emailInput" type="email" placeholder="name@example.com" />
+              <label class="input-label" for="passwordInput">Passwort</label>
+              <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Mindestens 6 Zeichen" />
+              <div class="settings-actions">
+                <button class="primary" id="loginButton" type="button">Einloggen</button>
+                <button class="ghost" id="registerButton" type="button">Registrieren</button>
+                <button class="ghost" id="magicLinkButton" type="button">Magic Link</button>
+                <button class="ghost" id="resetPasswordButton" type="button">Passwort zurücksetzen</button>
+                <button class="ghost" id="logoutButton" type="button">Logout</button>
+              </div>
+              <p class="settings-note">Passwort-Login bleibt gespeichert. Magic Link ist optional.</p>
+            </details>
+
+            <details class="settings-panel" id="cloudSetupPanel">
+              <summary>Sync</summary>
+              <div class="cloud-setup-card">
+                <p class="eyebrow">Cloud</p>
+                <h3>Geräte-Sync verbinden</h3>
+                <ol class="setup-steps">
+                  <li>Project URL aus Supabase kopieren.</li>
+                  <li>Anon public Key kopieren.</li>
+                  <li>Unten einfügen und Cloud verbinden klicken.</li>
+                </ol>
+              </div>
+
+              <label class="input-label paste-field" for="supabaseUrlInput">
+                Project URL
+                <input id="supabaseUrlInput" type="url" inputmode="url" autocomplete="off" placeholder="https://dein-projekt.supabase.co" />
+              </label>
+              <label class="input-label paste-field" for="supabaseAnonKeyInput">
+                Anon public Key
+                <div class="secret-input">
+                  <input id="supabaseAnonKeyInput" type="password" autocomplete="off" placeholder="eyJhbGciOi..." />
+                  <button class="ghost tiny-button" id="toggleKeyVisibilityButton" type="button">Anzeigen</button>
+                </div>
+              </label>
+              <div class="settings-actions">
+                <button class="primary" id="connectCloudButton" type="button">Cloud verbinden</button>
+                <button class="ghost" id="manualSyncButton" type="button">Jetzt synchronisieren</button>
+              </div>
+              <label class="input-label paste-field" for="redirectUrlInput">
+                Erlaubte Redirect URL für Supabase
+                <div class="secret-input">
+                  <input id="redirectUrlInput" type="text" readonly />
+                  <button class="ghost tiny-button" id="copyRedirectButton" type="button">Kopieren</button>
+                </div>
+              </label>
+              <div class="toggle-row">
+                <span>Sync zwischen Geräten</span>
+                <input id="syncToggle" type="checkbox" />
+              </div>
+              <p class="settings-note" id="cloudStatusText">Cloud noch nicht verbunden.</p>
+              <p class="settings-note" id="authDebugText">Noch kein Login-Versuch.</p>
+              <details class="mini-help">
+                <summary>Keine E-Mail erhalten?</summary>
+                <ul class="simple-list compact-help">
+                  <li>Spam-Ordner prüfen.</li>
+                  <li>In Supabase Authentication → URL Configuration die Redirect URL erlauben.</li>
+                  <li>Bei Supabase Auth Logs nach E-Mail-Fehlern schauen.</li>
+                  <li>Ohne eigenes SMTP sendet Supabase nur eingeschränkt.</li>
+                </ul>
+              </details>
+              <button class="ghost" id="exportButton" type="button">Daten sichern</button>
+            </details>
+
+            <details class="settings-panel">
+              <summary>Design</summary>
+              <div class="toggle-row">
+                <span>Hell / Dunkel</span>
+                <button class="ghost" id="settingsThemeButton" type="button">Wechseln</button>
+              </div>
+              <label class="input-label" for="colorSchemeInput">Farbschema</label>
+              <select id="colorSchemeInput">
+                <option>Indigo</option>
+                <option>Graphit</option>
+                <option>Ocean</option>
+                <option>Warm</option>
+                <option>Rose</option>
+                <option>Forest</option>
+                <option>Kontrast</option>
+              </select>
+              <label class="input-label" for="styleModeInput">Stil</label>
+              <select id="styleModeInput">
+                <option>Minimal</option>
+                <option>Soft</option>
+                <option>Kontrastreich</option>
+              </select>
+              <label class="input-label" for="fontSizeInput">Schriftgröße</label>
+              <select id="fontSizeInput">
+                <option>Klein</option>
+                <option>Normal</option>
+                <option>Groß</option>
+              </select>
+              <div class="toggle-row">
+                <span>Kompaktes Layout</span>
+                <input id="compactLayoutToggle" type="checkbox" />
+              </div>
+            </details>
+
+            <details class="settings-panel">
+              <summary>Sortierung & Voice</summary>
+              <div class="toggle-row">
+                <span>Automatische Sortierung</span>
+                <input id="autoDetectToggle" type="checkbox" checked />
+              </div>
+              <label class="input-label" for="recognitionLevelInput">Erkennungslevel</label>
+              <select id="recognitionLevelInput">
+                <option>Vorsichtig</option>
+                <option>Ausgewogen</option>
+                <option>Aktiv</option>
+              </select>
+              <label class="input-label" for="defaultCategoryInput">Standardbereich</label>
+              <select id="defaultCategoryInput">
+                <option value="note">Notizen</option>
+                <option value="task">To-dos</option>
+                <option value="personal">Persönlich</option>
+              </select>
+              <label class="input-label" for="speechLangInput">Mikrofon-Sprache</label>
+              <select id="speechLangInput">
+                <option value="de-DE">Deutsch</option>
+                <option value="en-US">Englisch</option>
+              </select>
+              <label class="input-label" for="micQualityInput">Mikrofonqualität</label>
+              <select id="micQualityInput">
+                <option>Automatisch</option>
+                <option>Hoch</option>
+                <option>Datensparend</option>
+              </select>
+            </details>
+
+            <details class="settings-panel">
+              <summary>Benachrichtigungen</summary>
+              <div class="toggle-row">
+                <span>Erinnerungen</span>
+                <input id="remindersToggle" type="checkbox" checked />
+              </div>
+              <div class="toggle-row">
+                <span>Tageszusammenfassung</span>
+                <input id="dailySummaryToggle" type="checkbox" />
+              </div>
+              <div class="toggle-row">
+                <span>Fokus-Modus</span>
+                <input id="focusModeToggle" type="checkbox" />
+              </div>
+            </details>
+
+            <details class="settings-panel">
+              <summary>Datenschutz</summary>
+              <div class="toggle-row">
+                <span>Cloud / Lokal</span>
+                <select id="privacyModeInput">
+                  <option>Lokal</option>
+                  <option>Cloud optional</option>
+                </select>
+              </div>
+              <button class="ghost" id="backupButton" type="button">Backup vorbereiten</button>
+              <p class="settings-note">Lokale Speicherung ist aktiv. Cloud Sync bleibt optional.</p>
+              <button class="danger" id="deleteAllButton" type="button">Lokale Daten löschen</button>
+            </details>
+
+            <details class="settings-panel">
+              <summary>Kontakt</summary>
+              <p class="settings-note">Kontakt: support@yourvoice.app</p>
+              <label class="input-label" for="contactNameInput">Name</label>
+              <input id="contactNameInput" type="text" placeholder="Dein Name" />
+              <label class="input-label" for="contactEmailInput">E-Mail</label>
+              <input id="contactEmailInput" type="email" placeholder="name@example.com" />
+              <label class="input-label" for="contactMessageInput">Nachricht</label>
+              <textarea id="contactMessageInput" placeholder="Wie können wir helfen?"></textarea>
+              <div class="settings-actions">
+                <button class="primary" id="sendContactButton" type="button">Nachricht senden</button>
+              </div>
+              <p class="settings-note" id="contactStatusText">Bereit.</p>
+            </details>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <button class="floating-voice" id="floatingVoiceButton" type="button" aria-label="Zur Spracheingabe springen">
+      <span aria-hidden="true"></span>
+    </button>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">Gespeichert</div>
+
+    <template id="reviewTemplate">
+      <div class="review-content">
+        <div class="simple-review">
+          <div class="simple-icon" id="reviewIcon" aria-hidden="true"></div>
+          <p class="eyebrow" id="reviewKind">Erkannt</p>
+          <h3 id="reviewTitle">Neuer Eintrag</h3>
+          <div class="review-actions">
+            <button class="primary" id="saveReviewButton" type="button">Bestätigen</button>
+            <button class="ghost" id="editReviewButton" type="button">Bearbeiten</button>
+          </div>
+        </div>
+
+        <div class="edit-fields" id="editFields" hidden>
+        <div class="field-grid">
+          <label>
+            Kategorie
+            <select id="kindInput">
+              <option value="task">To-do</option>
+              <option value="event">Termine / Ereignisse</option>
+              <option value="shopping">Essen / Einkauf</option>
+              <option value="school">Schule / Lernen</option>
+              <option value="idea">Ideen / Business</option>
+              <option value="personal">Persönlich</option>
+              <option value="finance">Finanzen</option>
+              <option value="health">Gesundheit</option>
+              <option value="family">Familie</option>
+              <option value="travel">Reisen</option>
+              <option value="reminder">Erinnerungen</option>
+              <option value="project">Projekte</option>
+              <option value="work">Arbeit</option>
+              <option value="home">Zuhause</option>
+              <option value="sport">Sport</option>
+              <option value="document">Dokumente</option>
+              <option value="note">Allgemeine Notizen</option>
+              <option value="birthday">Geburtstag</option>
+              <option value="errand">Erledigung</option>
+            </select>
+          </label>
+          <label>
+            Titel
+            <input id="titleInput" type="text" />
+          </label>
+          <label>
+            Datum
+            <input id="dateInput" type="date" />
+          </label>
+          <label>
+            Uhrzeit
+            <input id="timeInput" type="time" />
+          </label>
+          <label>
+            Ort
+            <input id="placeInput" type="text" placeholder="Optional" />
+          </label>
+          <label>
+            Erinnerung
+            <select id="reminderInput">
+              <option value="0">Zur Zeit</option>
+              <option value="15">15 Minuten vorher</option>
+              <option value="60">1 Stunde vorher</option>
+              <option value="1440">1 Tag vorher</option>
+              <option value="20160">2 Wochen vorher</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="notes-label">
+          Notiz
+          <textarea id="notesInput" rows="4"></textarea>
+        </label>
+
+        <div class="chips" id="reviewChips"></div>
+
+        <div class="review-actions">
+          <button class="ghost" id="resetReviewButton" type="button">Verwerfen</button>
+        </div>
+        </div>
+      </div>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
