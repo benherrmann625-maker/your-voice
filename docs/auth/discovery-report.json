@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2026-04-24T20:22:15.203Z",
+  "root": "/Users/benten09/Documents/Codex/2026-04-21-ich-werde-dir-gleich-eine-gesamte-2",
+  "legacyFiles": [
+    {
+      "file": "app.js",
+      "reason": "enthaelt Legacy-Supabase-Login, Passwort-Reset, Magic Link und Sync-Aufrufe",
+      "exists": true
+    },
+    {
+      "file": "public/app.js",
+      "reason": "ausgerollte Legacy-Kopie von app.js mit denselben Supabase-Artefakten",
+      "exists": true
+    },
+    {
+      "file": "index.html",
+      "reason": "enthaelt Login-, Sync- und Supabase-Eingabefelder im Settings-Bereich",
+      "exists": true
+    },
+    {
+      "file": "app/layout.tsx",
+      "reason": "injiziert NEXT_PUBLIC_SUPABASE_* in die Runtime und laedt supabase-js von CDN",
+      "exists": true
+    },
+    {
+      "file": "supabase-schema.sql",
+      "reason": "Legacy-Sync-Tabelle public.voice_items mit auth.users-Referenz",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "reason": "beschreibt den aktuellen Supabase-Login- und Sync-Weg",
+      "exists": true
+    }
+  ],
+  "dbArtifacts": [
+    {
+      "name": "public.voice_items",
+      "type": "table",
+      "source": "supabase-schema.sql",
+      "action": "migrieren oder nach erfolgreichem Cutover entfernen"
+    },
+    {
+      "name": "auth.users",
+      "type": "managed-auth table",
+      "source": "Supabase Auth",
+      "action": "exportieren fuer Lazy Migration, nicht direkt loeschen"
+    },
+    {
+      "name": "auth.identities",
+      "type": "managed-auth table",
+      "source": "Supabase Auth",
+      "action": "exportieren fuer Social/OAuth-Zuordnungen"
+    },
+    {
+      "name": "RLS policies auf public.voice_items",
+      "type": "policy",
+      "source": "supabase-schema.sql",
+      "action": "nach Cutover pruefen und dann entfernen"
+    }
+  ],
+  "envRefs": [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_PROJECT_REF"
+  ],
+  "risks": [
+    "Legacy-Auth ist direkt in app.js und public/app.js eingebettet und kann nicht blind per Dateiloeschung entfernt werden.",
+    "Supabase-Sessions und Refresh Tokens muessen beim Cutover explizit widerrufen werden.",
+    "OAuth-/Magic-Link-Routen brauchen neue Callback-/Logout-URLs und Tenant-Einstellungen.",
+    "Bestehende Nutzer muessen fuer MFA-Re-Enrollment und gegebenenfalls Passwort-Reset sauber gefuehrt werden."
+  ]
+}

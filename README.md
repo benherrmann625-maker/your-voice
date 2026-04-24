@@ -2,6 +2,28 @@
 
 Release-orientierte local-first Voice-Organizer-App auf Basis des Research-PDFs.
 
+## Neue Auth-Referenzen
+
+Zusätzlich zur bestehenden App liegen jetzt zwei vollständige Auth-Referenzen im Repository:
+
+- **Managed:** Auth0 + Next.js App Router mit serverseitigen Sessions unter `/app/auth`, `/app/protected`, `/app/api/auth/*`, `/lib/auth0.ts` und `/middleware.ts`
+- **Self-hosted:** Node/Express + Passport.js + Postgres Session Store unter `/server/self-hosted`
+
+Dry-Run, Backup, Migration und Cleanup sind dokumentiert in:
+
+- `/Users/benten09/Documents/Codex/2026-04-21-ich-werde-dir-gleich-eine-gesamte-2/docs/auth/README.md`
+- `/Users/benten09/Documents/Codex/2026-04-21-ich-werde-dir-gleich-eine-gesamte-2/docs/auth/MIGRATION_PLAN.md`
+
+Wichtige Skripte:
+
+```bash
+npm run auth:discovery
+npm run auth:dry-run
+npm run auth:backup
+npm run auth:execute-cleanup -- --execute
+npm run auth:invalidate
+```
+
 ## Enthalten
 
 - PWA für Web und mobile Browser

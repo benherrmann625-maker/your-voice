@@ -16,6 +16,11 @@ const css = read("styles.css");
 const sw = read("sw.js");
 const manifest = read("manifest.webmanifest");
 const goldset = JSON.parse(read("qa-nlu-goldset.json"));
+const authDocs = read("docs/auth/README.md");
+const migrationDocs = read("docs/auth/MIGRATION_PLAN.md");
+const authRoute = read("server/self-hosted/src/routes/auth.js");
+const auth0Lib = read("lib/auth0.ts");
+const middleware = read("middleware.ts");
 
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "app.js")], {
   encoding: "utf8",
@@ -94,6 +99,9 @@ check(
 check("tips collapsed by default", !html.includes('<details class="settings-panel" open>\n              <summary>Wie sprechen</summary>'));
 check("cache version advanced", /your-voice-v\d+/.test(sw));
 check("goldset has release examples", goldset.length >= 19);
+check("auth0 nextjs client", auth0Lib.includes("Auth0Client") && middleware.includes("Content-Security-Policy"));
+check("auth docs exist", authDocs.includes("Auth0 + Next.js") && migrationDocs.includes("Lazy Migration"));
+check("self-hosted auth routes", authRoute.includes("/register") && authRoute.includes("/passkey/login") && authRoute.includes("/mfa/enroll"));
 
 const appExpectations = [
   "school_learning_context",

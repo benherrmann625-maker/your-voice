@@ -9,12 +9,19 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "verify": "node --check app.js && node scripts/verify-release.mjs"
+    "verify": "node --check app.js && node scripts/verify-release.mjs",
+    "auth:discovery": "node scripts/auth-discovery.mjs",
+    "auth:backup": "node scripts/auth-backup.mjs",
+    "auth:dry-run": "node scripts/auth-dry-run-cleanup.mjs",
+    "auth:execute-cleanup": "node scripts/auth-execute-cleanup.mjs",
+    "auth:invalidate": "node scripts/auth-invalidate-sessions.mjs"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.5.0",
     "next": "^15.5.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
