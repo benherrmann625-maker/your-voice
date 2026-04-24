@@ -1,4 +1,4 @@
-const CACHE_NAME = "your-voice-v23";
+const CACHE_NAME = "your-voice-v24";
 const ASSETS = [
   "/",
   "/styles.css",

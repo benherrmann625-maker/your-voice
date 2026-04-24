@@ -6,7 +6,7 @@
   "scripts": {
     "prepare:static": "node scripts/sync-public-assets.mjs",
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run prepare:static && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify": "node --check app.js && node scripts/verify-release.mjs",
