@@ -91,7 +91,6 @@ const els = {
   showDoneButton: document.querySelector("#showDoneButton"),
   showDeletedButton: document.querySelector("#showDeletedButton"),
   addInboxCategoryButton: document.querySelector("#addInboxCategoryButton"),
-  exportButton: document.querySelector("#exportButton"),
   importButton: document.querySelector("#importButton"),
   importFileInput: document.querySelector("#importFileInput"),
   calendarExportButton: document.querySelector("#calendarExportButton"),
@@ -280,7 +279,6 @@ function bindEvents() {
     createCustomCategory(label);
   });
 
-  els.exportButton.addEventListener("click", exportData);
   els.importButton?.addEventListener("click", () => {
     els.importFileInput?.click();
   });
@@ -326,7 +324,7 @@ function bindSettingsEvents() {
   els.addCustomCategoryButton?.addEventListener("click", addCustomCategory);
   els.remindersToggle.addEventListener("change", () => updateSetting("remindersEnabled", els.remindersToggle.checked));
   els.focusModeToggle.addEventListener("change", () => updateSetting("focusMode", els.focusModeToggle.checked));
-  els.backupButton.addEventListener("click", () => {
+  els.backupButton?.addEventListener("click", () => {
     exportData();
   });
 }
