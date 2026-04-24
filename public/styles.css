@@ -4,16 +4,16 @@
   --muted: #6b7280;
   --line: #e7e9ef;
   --surface: #f7f8fb;
-  --panel: rgba(255, 255, 255, 0.82);
+  --panel: rgba(255, 255, 255, 0.96);
   --solid: #ffffff;
   --accent: #4f46e5;
   --danger: #b42318;
-  --shadow: 0 24px 70px rgba(17, 24, 39, 0.095);
-  --soft-shadow: 0 10px 32px rgba(17, 24, 39, 0.065);
+  --shadow: 0 10px 26px rgba(17, 24, 39, 0.05);
+  --soft-shadow: 0 4px 12px rgba(17, 24, 39, 0.03);
   --hairline: rgba(17, 24, 39, 0.075);
-  --radius: 9px;
-  --radius-sm: 7px;
-  --panel-blur: 20px;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --panel-blur: 0px;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -24,10 +24,10 @@
   --muted: #b8c0cc;
   --line: rgba(255, 255, 255, 0.14);
   --surface: #121826;
-  --panel: rgba(30, 41, 59, 0.72);
+  --panel: rgba(30, 41, 59, 0.94);
   --solid: #1e293b;
-  --shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
-  --soft-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  --shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
+  --soft-shadow: 0 4px 12px rgba(0, 0, 0, 0.11);
   --hairline: rgba(255, 255, 255, 0.1);
 }
 
@@ -175,17 +175,12 @@
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 42%),
-    radial-gradient(circle at top right, color-mix(in srgb, var(--accent), transparent 90%), transparent 32%),
-    var(--surface);
+  background: var(--surface);
   color: var(--ink);
 }
 
 :root[data-theme="dark"] body {
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--accent), transparent 82%), transparent 34%),
-    var(--surface);
+  background: var(--surface);
 }
 
 button,
@@ -211,7 +206,7 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 286px minmax(0, 1fr);
+  grid-template-columns: 264px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -222,32 +217,31 @@ button {
   flex-direction: column;
   gap: 20px;
   height: 100vh;
-  padding: 26px 18px;
+  padding: 22px 16px;
   border-right: 1px solid var(--line);
-  background: color-mix(in srgb, var(--solid), transparent 8%);
-  backdrop-filter: blur(20px);
+  background: color-mix(in srgb, var(--solid), transparent 3%);
+  backdrop-filter: blur(12px);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .brand-mark {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   border-radius: var(--radius);
-  background: linear-gradient(135deg, var(--ink), var(--accent));
+  background: var(--ink);
   color: #fff;
-  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.18);
 }
 
 .brand-mark svg {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2.6;
@@ -266,56 +260,52 @@ button {
 }
 
 .brand h1 {
-  font-size: 1.18rem;
+  font-size: 1rem;
   font-weight: 900;
 }
 
 .brand h1 span,
 .eyebrow {
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .eyebrow {
   margin: 0 0 4px;
-  font-size: 0.68rem;
-  font-weight: 850;
-  letter-spacing: 0.08em;
+  font-size: 0.64rem;
+  font-weight: 780;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .tabs {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .tab {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0 12px;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 10px;
   border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
   text-align: left;
-  font-weight: 760;
-  transition: background 220ms ease, color 220ms ease, transform 220ms ease;
+  font-weight: 740;
+  transition: background 180ms ease, color 180ms ease;
 }
 
 .tab:hover,
 .tab.active {
-  background: color-mix(in srgb, var(--accent), transparent 91%);
+  background: color-mix(in srgb, var(--accent), transparent 94%);
   color: var(--ink);
-}
-
-.tab:hover {
-  transform: translateX(2px);
 }
 
 .tab span {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   place-items: center;
 }
 
@@ -368,16 +358,15 @@ button {
   border-radius: var(--radius);
   background: var(--panel);
   box-shadow: var(--soft-shadow);
-  backdrop-filter: blur(var(--panel-blur));
 }
 
 .inbox-group {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--solid), transparent 7%);
-  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.045);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.035);
   overflow: hidden;
-  animation: itemIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: itemIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
@@ -393,11 +382,11 @@ button {
 
 .inbox-group summary {
   display: grid;
-  grid-template-columns: 18px 38px minmax(0, 1fr) auto auto;
+  grid-template-columns: 16px 34px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 10px;
-  min-height: 58px;
-  padding: 10px 14px;
+  gap: 9px;
+  min-height: 52px;
+  padding: 8px 12px;
   cursor: pointer;
   list-style: none;
   transition: background 180ms ease;
@@ -421,8 +410,8 @@ button {
 }
 
 .delete-group {
-  min-height: 32px;
-  padding-inline: 10px;
+  min-height: 30px;
+  padding-inline: 9px;
 }
 
 .empty-box {
@@ -437,8 +426,8 @@ button {
 
 .group-icon {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--category-color), transparent 90%);
@@ -456,7 +445,7 @@ button {
 }
 
 .inbox-group summary strong {
-  font-size: 1rem;
+  font-size: 0.96rem;
   color: var(--ink);
   letter-spacing: 0;
 }
@@ -469,13 +458,13 @@ button {
 }
 
 .setting-chip {
-  min-height: 28px;
-  padding: 0 10px;
+  min-height: 26px;
+  padding: 0 9px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: color-mix(in srgb, var(--solid), transparent 8%);
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 800;
 }
 
@@ -513,9 +502,9 @@ button {
 
 .group-items {
   display: grid;
-  gap: 8px;
-  padding: 0 12px 12px;
-  animation: cardIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  gap: 7px;
+  padding: 0 10px 10px;
+  animation: cardIn 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .completed-group {
@@ -525,15 +514,15 @@ button {
 
 .sidebar-footer {
   margin-top: auto;
-  padding: 12px;
+  padding: 8px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   line-height: 1.45;
 }
 
 .main {
   min-width: 0;
-  padding: 32px;
+  padding: 22px clamp(16px, 2.6vw, 28px) 52px;
 }
 
 :root[data-focus="true"] .recent-section,
@@ -547,12 +536,12 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 22px;
+  margin-bottom: 14px;
 }
 
 .topbar h2 {
-  font-size: clamp(1.9rem, 4vw, 3rem);
-  line-height: 1;
+  font-size: clamp(1.2rem, 1.9vw, 1.55rem);
+  line-height: 1.12;
 }
 
 .status-pill,
@@ -563,9 +552,9 @@ button {
   justify-content: center;
   min-height: 36px;
   border-radius: 999px;
-  background: var(--panel);
+  background: var(--solid);
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 780;
 }
 
@@ -599,13 +588,13 @@ button {
 
 .view.active {
   display: block;
-  animation: viewIn 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: viewIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .capture-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 12px;
   align-items: start;
 }
 
@@ -613,7 +602,7 @@ button {
 .review-panel,
 .search-panel,
 .recent-section {
-  padding: 16px;
+  padding: 12px;
 }
 
 .filter-chips {
@@ -638,7 +627,7 @@ button {
 
 .filter-panel {
   margin-top: 12px;
-  padding-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
   animation: cardIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -650,61 +639,61 @@ button {
 }
 
 .filter-chip {
-  min-height: 34px;
-  padding: 0 11px;
+  min-height: 32px;
+  padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--filter-color, var(--accent)), transparent 70%);
   border-radius: 999px;
   background: color-mix(in srgb, var(--filter-color, var(--accent)), transparent 93%);
   color: var(--ink);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 850;
   transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 
 .filter-chip:hover,
 .filter-chip.active {
-  transform: translateY(-1px);
+  transform: none;
   border-color: color-mix(in srgb, var(--filter-color, var(--accent)), transparent 36%);
-  background: color-mix(in srgb, var(--filter-color, var(--accent)), transparent 84%);
+  background: color-mix(in srgb, var(--filter-color, var(--accent)), transparent 88%);
 }
 
 .mic-zone {
   display: grid;
   place-items: center;
-  gap: 10px;
-  min-height: 208px;
-  margin-bottom: 14px;
+  gap: 8px;
+  min-height: 164px;
+  margin-bottom: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--solid), transparent 16%);
+  background: var(--solid);
   text-align: center;
 }
 
 .capture-kicker {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .capture-kicker h3 {
-  font-size: clamp(1.2rem, 2.4vw, 1.8rem);
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
 }
 
 .mic-button {
   display: grid;
-  width: 104px;
-  height: 104px;
+  width: 92px;
+  height: 92px;
   place-items: center;
   border-radius: 50%;
   background: var(--ink);
   color: var(--surface);
-  box-shadow: 0 16px 34px rgba(17, 24, 39, 0.14);
-  transform: translateY(6px);
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.1);
+  transform: translateY(4px);
   transition: transform 220ms ease, box-shadow 220ms ease;
 }
 
 .mic-button:hover {
-  transform: translateY(4px) scale(1.015);
-  box-shadow: 0 18px 40px rgba(17, 24, 39, 0.18);
+  transform: translateY(2px) scale(1.012);
+  box-shadow: 0 10px 20px rgba(17, 24, 39, 0.12);
 }
 
 .mic-button.recording {
@@ -713,11 +702,11 @@ button {
 
 .mic-icon {
   position: relative;
-  width: 26px;
-  height: 42px;
+  width: 22px;
+  height: 36px;
   border-radius: 16px;
   background: currentColor;
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 .mic-icon::before,
@@ -730,19 +719,19 @@ button {
 }
 
 .mic-icon::before {
-  bottom: -12px;
-  width: 44px;
-  height: 24px;
-  border: 4px solid currentColor;
+  bottom: -10px;
+  width: 38px;
+  height: 21px;
+  border: 3px solid currentColor;
   border-top: 0;
   border-radius: 0 0 22px 22px;
   background: transparent;
 }
 
 .mic-icon::after {
-  bottom: -26px;
-  width: 4px;
-  height: 18px;
+  bottom: -23px;
+  width: 3px;
+  height: 16px;
 }
 
 .wave {
@@ -810,8 +799,8 @@ select {
 }
 
 textarea {
-  min-height: 104px;
-  padding: 13px;
+  min-height: 96px;
+  padding: 12px;
   resize: vertical;
   line-height: 1.5;
 }
@@ -840,111 +829,22 @@ select:focus {
 .settings-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 9px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.install-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
-}
-
-.install-prompt-card {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent), transparent 80%);
-  border-radius: var(--radius);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 92%), transparent 74%),
-    color-mix(in srgb, var(--solid), transparent 8%);
-  box-shadow: var(--soft-shadow);
-}
-
-.install-prompt-card h3,
 .install-settings-card h3 {
   margin: 4px 0;
   font-size: 1rem;
 }
 
-.guest-mode-card {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--ink), transparent 88%);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--solid), transparent 7%);
-}
-
-.guest-mode-card h3 {
-  margin: 4px 0;
-  font-size: 1rem;
-}
-
-.guest-mode-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.guest-mode-checklist {
-  display: grid;
-  gap: 8px;
-}
-
-.guest-check-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 9px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--solid), transparent 8%);
-}
-
-.guest-check-item strong {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--ink);
-  font-size: 0.9rem;
-}
-
-.guest-check-item span {
-  color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.42;
-}
-
-.guest-check-item .guest-check-mark {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  place-items: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent), transparent 88%);
-  color: var(--accent);
-  font-size: 0.78rem;
-  font-weight: 900;
-}
-
-.guest-check-item.warn .guest-check-mark {
-  background: color-mix(in srgb, var(--danger), transparent 90%);
-  color: var(--danger);
-}
-
 .aha-panel {
   display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--accent), transparent 78%);
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 86%);
   border-radius: var(--radius);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 93%), transparent 76%),
-    color-mix(in srgb, var(--solid), transparent 6%);
+  background: color-mix(in srgb, var(--solid), transparent 4%);
 }
 
 .aha-panel h4 {
@@ -958,19 +858,6 @@ select:focus {
   line-height: 1.48;
 }
 
-.quick-capture-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.quick-capture-bar .tiny-button {
-  min-height: 32px;
-  padding-inline: 11px;
-  font-size: 0.76rem;
-}
-
 .item-actions {
   margin-top: 4px;
   gap: 7px;
@@ -978,9 +865,9 @@ select:focus {
 
 .item-actions .ghost,
 .item-actions .danger {
-  min-height: 34px;
-  padding-inline: 10px;
-  font-size: 0.78rem;
+  min-height: 32px;
+  padding-inline: 9px;
+  font-size: 0.75rem;
 }
 
 .item-reminders {
@@ -1012,12 +899,12 @@ select:focus {
 
 .quick-edit-panel {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   margin-top: 6px;
-  border: 1px solid color-mix(in srgb, var(--category-color, var(--accent)), transparent 74%);
+  border: 1px solid color-mix(in srgb, var(--category-color, var(--accent)), transparent 82%);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--solid), transparent 6%);
+  background: var(--solid);
 }
 
 .quick-edit-head {
@@ -1034,7 +921,7 @@ select:focus {
 .quick-edit-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .quick-edit-actions {
@@ -1046,21 +933,21 @@ select:focus {
 .primary,
 .ghost,
 .danger {
-  min-height: 42px;
-  padding: 0 15px;
+  min-height: 36px;
+  padding: 0 12px;
   border-radius: var(--radius);
-  font-weight: 850;
+  font-weight: 820;
   transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
 .primary {
-  background: var(--ink);
-  color: var(--surface);
+  background: var(--accent);
+  color: #fff;
 }
 
 .ghost {
   border: 1px solid var(--line);
-  background: var(--solid);
+  background: color-mix(in srgb, var(--solid), transparent 3%);
   color: var(--ink);
 }
 
@@ -1077,8 +964,8 @@ select:focus {
 .primary:hover,
 .ghost:hover,
 .danger:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--soft-shadow);
+  transform: none;
+  box-shadow: none;
 }
 
 .empty-state,
@@ -1086,7 +973,7 @@ select:focus {
   display: grid;
   align-content: center;
   justify-items: center;
-  min-height: 320px;
+  min-height: 220px;
   color: var(--muted);
   text-align: center;
 }
@@ -1096,7 +983,7 @@ select:focus {
   max-width: 18ch;
   margin: 0;
   color: var(--ink);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
 }
 
 .empty-actions {
@@ -1122,8 +1009,8 @@ select:focus {
 
 .review-content {
   display: grid;
-  gap: 16px;
-  animation: cardIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  gap: 14px;
+  animation: cardIn 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .simple-icon {
@@ -1139,8 +1026,8 @@ select:focus {
 
 .simple-icon svg,
 .item-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.9;
@@ -1161,18 +1048,18 @@ select:focus {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 6px;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 9px;
+  min-height: 26px;
+  padding: 0 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent), transparent 92%);
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 780;
 }
 
@@ -1201,49 +1088,35 @@ select:focus {
 }
 
 .recent-section {
-  margin-top: 18px;
-}
-
-.focus-section {
-  display: grid;
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.focus-summary {
-  display: grid;
-}
-
-.home-focus-card {
-  min-height: 0;
+  margin-top: 14px;
 }
 
 .list-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .toolbar-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 9px;
+  gap: 8px;
   justify-content: flex-end;
 }
 
 .archive-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 7px;
+  margin-top: 8px;
 }
 
 .archive-actions .tiny-button {
-  min-height: 32px;
-  padding-inline: 10px;
-  font-size: 0.76rem;
+  min-height: 30px;
+  padding-inline: 9px;
+  font-size: 0.74rem;
   opacity: 0.84;
 }
 
@@ -1254,12 +1127,12 @@ select:focus {
 }
 
 .list-toolbar h3 {
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .item-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .item-list.compact .item-card:nth-child(n + 4) {
@@ -1269,13 +1142,13 @@ select:focus {
 .item-card {
   position: relative;
   display: grid;
-  gap: 9px;
-  padding: 13px;
+  gap: 8px;
+  padding: 12px;
   border-color: var(--hairline);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--category-color, var(--accent)), transparent 94%), transparent 46%),
-    linear-gradient(180deg, color-mix(in srgb, var(--solid), transparent 3%), color-mix(in srgb, var(--solid), transparent 14%));
-  animation: itemIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    linear-gradient(135deg, color-mix(in srgb, var(--category-color, var(--accent)), transparent 96%), transparent 42%),
+    color-mix(in srgb, var(--solid), transparent 5%);
+  animation: itemIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition: transform 180ms ease, box-shadow 180ms ease;
   overflow: hidden;
 }
@@ -1284,13 +1157,13 @@ select:focus {
   content: "";
   position: absolute;
   inset: auto 0 0;
-  height: 3px;
-  background: color-mix(in srgb, var(--category-color, var(--accent)), transparent 18%);
+  height: 2px;
+  background: color-mix(in srgb, var(--category-color, var(--accent)), transparent 28%);
 }
 
 .item-card.pinned {
   border-color: color-mix(in srgb, var(--category-color, var(--accent)), transparent 56%);
-  box-shadow: var(--soft-shadow);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.035);
 }
 
 .item-card.due-overdue {
@@ -1311,7 +1184,7 @@ select:focus {
 
 .item-card:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow);
+  box-shadow: var(--soft-shadow);
 }
 
 .item-card.done {
@@ -1319,21 +1192,21 @@ select:focus {
 }
 
 .icon-action {
-  width: 42px;
+  width: 36px;
   padding: 0;
 }
 
 .item-top {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
 }
 
 .item-icon {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--category-color, var(--accent)), transparent 88%);
@@ -1342,7 +1215,7 @@ select:focus {
 
 .item-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.96rem;
   font-weight: 850;
 }
 
@@ -1358,7 +1231,7 @@ select:focus {
   gap: 7px;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.79rem;
 }
 
 .kind {
@@ -1377,9 +1250,9 @@ select:focus {
 
 .shopping-list li {
   min-height: 32px;
-  padding: 7px 9px;
+  padding: 6px 8px;
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--accent), transparent 94%);
+  background: color-mix(in srgb, var(--accent), transparent 96%);
   color: var(--ink);
   font-weight: 720;
 }
@@ -1387,15 +1260,15 @@ select:focus {
 .segmented {
   display: inline-flex;
   gap: 4px;
-  padding: 4px;
+  padding: 3px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel);
 }
 
 .segment {
-  min-height: 34px;
-  padding: 0 13px;
+  min-height: 32px;
+  padding: 0 11px;
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
@@ -1405,8 +1278,8 @@ select:focus {
 
 .segment:hover,
 .segment.active {
-  background: var(--ink);
-  color: var(--surface);
+  background: color-mix(in srgb, var(--ink), transparent 6%);
+  color: var(--ink);
 }
 
 .calendar-shell {
@@ -1429,13 +1302,13 @@ select:focus {
 
 .calendar-head h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.08rem;
 }
 
 .calendar-grid {
   display: grid;
-  gap: 6px;
-  animation: cardIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  gap: 5px;
+  animation: cardIn 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .calendar-grid.month {
@@ -1452,7 +1325,7 @@ select:focus {
 
 .calendar-weekday {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 850;
   text-align: center;
 }
@@ -1461,9 +1334,9 @@ select:focus {
   position: relative;
   display: grid;
   align-content: start;
-  gap: 8px;
-  min-height: 72px;
-  padding: 9px;
+  gap: 7px;
+  min-height: 68px;
+  padding: 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
@@ -1476,7 +1349,7 @@ select:focus {
 .calendar-day.selected {
   border-color: color-mix(in srgb, var(--day-color, var(--accent)), transparent 45%);
   box-shadow: var(--soft-shadow);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .calendar-day.selected {
@@ -1496,7 +1369,7 @@ select:focus {
 }
 
 .calendar-day.large {
-  min-height: 112px;
+  min-height: 96px;
 }
 
 .calendar-day span {
@@ -1536,9 +1409,9 @@ select:focus {
 
 .day-panel-content {
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  animation: cardIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  gap: 10px;
+  padding: 12px;
+  animation: cardIn 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .day-panel-content.compact {
@@ -1554,7 +1427,7 @@ select:focus {
 
 .day-panel h3 {
   margin: 0;
-  font-size: 1.18rem;
+  font-size: 1.02rem;
 }
 
 .agenda-entry {
@@ -1568,52 +1441,51 @@ select:focus {
 .agenda-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-  width: min(1280px, 100%);
+  gap: 8px;
+  margin-bottom: 12px;
+  width: min(1120px, 100%);
   margin-inline: auto;
 }
 
 .metric-card {
-  min-height: 74px;
-  padding: 13px;
+  min-height: 66px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--solid), transparent 4%), color-mix(in srgb, var(--solid), transparent 16%));
-  box-shadow: var(--soft-shadow);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.035);
 }
 
 .metric-card span {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 820;
 }
 
 .metric-card strong {
-  font-size: 1.7rem;
+  font-size: 1.38rem;
   letter-spacing: 0;
 }
 
 .summary-card {
   display: grid;
-  gap: 10px;
-  min-height: 74px;
-  padding: 13px;
+  gap: 8px;
+  min-height: 66px;
+  padding: 11px;
   border: 1px solid color-mix(in srgb, var(--accent), transparent 76%);
   border-radius: var(--radius);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 92%), transparent 76%),
-    linear-gradient(180deg, color-mix(in srgb, var(--solid), transparent 4%), color-mix(in srgb, var(--solid), transparent 14%));
-  box-shadow: var(--soft-shadow);
+    color-mix(in srgb, var(--solid), transparent 4%);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.035);
   grid-column: 1 / -1;
 }
 
 .summary-card h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.94rem;
 }
 
 .summary-pills {
@@ -1623,28 +1495,24 @@ select:focus {
 }
 
 .agenda-create-panel {
-  width: min(1280px, 100%);
-  margin: 0 auto 14px;
+  width: min(1120px, 100%);
+  margin: 0 auto 12px;
   overflow: hidden;
 }
 
 .agenda-create-panel summary {
-  min-height: 46px;
-  padding: 0 16px;
+  min-height: 42px;
+  padding: 0 14px;
   cursor: pointer;
   font-weight: 850;
   list-style: none;
   color: var(--ink);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 88%), transparent 60%),
-    color-mix(in srgb, var(--solid), transparent 7%);
+  background: color-mix(in srgb, var(--solid), transparent 5%);
   transition: background 180ms ease, transform 180ms ease;
 }
 
 .agenda-create-panel summary:hover {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 82%), transparent 64%),
-    color-mix(in srgb, var(--solid), transparent 4%);
+  background: color-mix(in srgb, var(--solid), transparent 1%);
 }
 
 .agenda-create-panel summary::-webkit-details-marker {
@@ -1665,9 +1533,9 @@ select:focus {
 .agenda-create-grid {
   display: grid;
   grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(120px, 0.7fr)) auto;
-  gap: 10px;
+  gap: 8px;
   align-items: end;
-  padding: 0 14px 14px;
+  padding: 0 12px 12px;
   animation: cardIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -1678,13 +1546,13 @@ select:focus {
 .create-event-button {
   background: var(--accent);
   color: white;
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--accent), transparent 76%);
+  box-shadow: none;
 }
 
 .settings-stack {
   display: grid;
   max-width: 760px;
-  gap: 8px;
+  gap: 6px;
 }
 
 .settings-panel {
@@ -1693,8 +1561,8 @@ select:focus {
 }
 
 .settings-panel summary {
-  min-height: 48px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1722,17 +1590,15 @@ select:focus {
 }
 
 .settings-panel > :not(summary) {
-  margin: 0 14px 14px;
-  animation: cardIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  margin: 0 12px 12px;
+  animation: cardIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .cloud-setup-card {
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent), transparent 78%);
+  padding: 12px;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 90%), transparent 72%),
-    var(--solid);
+  background: var(--solid);
 }
 
 .cloud-setup-card h3 {
@@ -1765,8 +1631,8 @@ select:focus {
 }
 
 .tiny-button {
-  min-height: 42px;
-  padding-inline: 12px;
+  min-height: 36px;
+  padding-inline: 10px;
 }
 
 .simple-list {
@@ -1777,7 +1643,7 @@ select:focus {
 }
 
 .simple-list li {
-  padding: 9px 11px;
+  padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--muted);
@@ -1791,7 +1657,7 @@ select:focus {
 }
 
 .mini-help summary {
-  min-height: 42px;
+  min-height: 38px;
   padding: 0 12px;
   color: var(--ink);
   cursor: pointer;
@@ -1811,32 +1677,34 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 44px;
+  min-height: 40px;
   color: var(--muted);
 }
 
 .floating-voice {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: 20px;
+  bottom: 20px;
   z-index: 20;
   display: grid;
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   place-items: center;
   border-radius: 50%;
   background: var(--ink);
-  box-shadow: var(--shadow);
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  box-shadow: var(--soft-shadow);
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+  opacity: 0.92;
 }
 
 .floating-voice:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
+  opacity: 1;
 }
 
 .floating-voice span {
-  width: 13px;
-  height: 23px;
+  width: 11px;
+  height: 20px;
   border-radius: 10px;
   background: var(--surface);
 }
@@ -1846,12 +1714,12 @@ select:focus {
   left: 50%;
   bottom: 28px;
   z-index: 30;
-  min-height: 40px;
-  padding: 9px 15px;
+  min-height: 36px;
+  padding: 8px 13px;
   border-radius: 999px;
   background: var(--ink);
   color: var(--surface);
-  font-weight: 850;
+  font-weight: 820;
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, 10px) scale(0.98);
@@ -1927,13 +1795,13 @@ select:focus {
     position: sticky;
     z-index: 10;
     height: auto;
-    padding: 14px;
+    padding: 12px;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
 
   .tabs {
-    grid-template-columns: repeat(6, minmax(96px, 1fr));
+    grid-template-columns: repeat(6, minmax(88px, 1fr));
     overflow-x: auto;
   }
 
@@ -1948,7 +1816,7 @@ select:focus {
   }
 
   .main {
-    padding: 18px 14px 96px;
+    padding: 16px 12px 88px;
   }
 
   .capture-layout,
@@ -1984,8 +1852,8 @@ select:focus {
   }
 
   .calendar-day {
-    min-height: 70px;
-    padding: 8px;
+    min-height: 64px;
+    padding: 7px;
   }
 }
 
@@ -1999,6 +1867,10 @@ select:focus {
   .status-pill {
     margin-left: 0;
     width: fit-content;
+  }
+
+  .topbar h2 {
+    font-size: 1.16rem;
   }
 
   .field-grid {
@@ -2028,7 +1900,7 @@ select:focus {
   }
 
   .floating-voice {
-    right: 16px;
-    bottom: 16px;
+    right: 14px;
+    bottom: 14px;
   }
 }

@@ -6,7 +6,6 @@ const INDEXED_DB_VERSION = 1;
 const INDEXED_DB_STORE = "app_state";
 const INDEXED_ITEMS_KEY = "items";
 const INDEXED_SETTINGS_KEY = "settings";
-const EXAMPLE_NOTE = "Morgen 14 Uhr Zahnarzt";
 const runtimeConfig =
   typeof window !== "undefined" && window.__YOUR_VOICE_CONFIG__ && typeof window.__YOUR_VOICE_CONFIG__ === "object"
     ? window.__YOUR_VOICE_CONFIG__
@@ -81,22 +80,7 @@ const els = {
   viewTitle: document.querySelector("#viewTitle"),
   captureInput: document.querySelector("#captureInput"),
   parseButton: document.querySelector("#parseButton"),
-  loadExampleButton: document.querySelector("#loadExampleButton"),
   clearInputButton: document.querySelector("#clearInputButton"),
-  quickCaptureButtons: [...document.querySelectorAll("[data-quick-capture]")],
-  pasteCaptureButton: document.querySelector("#pasteCaptureButton"),
-  installPromptCard: document.querySelector("#installPromptCard"),
-  installAppButton: document.querySelector("#installAppButton"),
-  dismissInstallPromptButton: document.querySelector("#dismissInstallPromptButton"),
-  installHintText: document.querySelector("#installHintText"),
-  guestModeCard: document.querySelector("#guestModeCard"),
-  guestModeText: document.querySelector("#guestModeText"),
-  guestModeMeta: document.querySelector("#guestModeMeta"),
-  guestModeChecklist: document.querySelector("#guestModeChecklist"),
-  guestBackupNowButton: document.querySelector("#guestBackupNowButton"),
-  openBackupButton: document.querySelector("#openBackupButton"),
-  openSyncSettingsButton: document.querySelector("#openSyncSettingsButton"),
-  dismissGuestCardButton: document.querySelector("#dismissGuestCardButton"),
   micButton: document.querySelector("#micButton"),
   floatingVoiceButton: document.querySelector("#floatingVoiceButton"),
   micHint: document.querySelector("#micHint"),
@@ -105,8 +89,6 @@ const els = {
   reviewTemplate: document.querySelector("#reviewTemplate"),
   categoryGrid: document.querySelector("#categoryGrid"),
   agendaMetrics: document.querySelector("#agendaMetrics"),
-  focusSummary: document.querySelector("#focusSummary"),
-  focusList: document.querySelector("#focusList"),
   calendarGrid: document.querySelector("#calendarGrid"),
   calendarTitle: document.querySelector("#calendarTitle"),
   dayPanel: document.querySelector("#dayPanel"),
@@ -278,40 +260,8 @@ function bindEvents() {
     els.captureInput.value = "";
     els.captureInput.focus();
   });
-  els.loadExampleButton?.addEventListener("click", () => {
-    loadExampleNote();
-  });
-  els.quickCaptureButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      applyQuickCapture(button.dataset.quickCapture || "");
-    });
-  });
-  els.pasteCaptureButton?.addEventListener("click", () => {
-    void pasteFromClipboardToCapture();
-  });
-  els.installAppButton?.addEventListener("click", () => {
-    void promptInstallApp();
-  });
   els.installSettingsButton?.addEventListener("click", () => {
     void promptInstallApp();
-  });
-  els.dismissInstallPromptButton?.addEventListener("click", () => {
-    dismissInstallPrompt();
-  });
-  els.openBackupButton?.addEventListener("click", () => {
-    openSettingsPanel("privacy");
-  });
-  els.guestBackupNowButton?.addEventListener("click", () => {
-    exportData();
-  });
-  els.openSyncSettingsButton?.addEventListener("click", () => {
-    openSettingsPanel("sync");
-  });
-  els.dismissGuestCardButton?.addEventListener("click", () => {
-    state.guestModeHintDismissed = true;
-    saveSettings();
-    updateGuestModeUi();
-    showToast("Gast-Hinweis ausgeblendet");
   });
 
   els.micButton.addEventListener("click", toggleSpeech);
@@ -1062,7 +1012,6 @@ function applySettings() {
     els.backupStatusText.textContent = parts.length ? `${parts.join(" · ")}.` : "Noch kein Backup erstellt.";
   }
   updateInstallUi();
-  updateGuestModeUi();
   els.cloudStatusText.textContent = getCloudStatusText();
   els.authDebugText.textContent = state.authStatusMessage;
   if (cloudConfigLocked && !state.cloudUser) {
@@ -2054,20 +2003,13 @@ function renderReviewEmpty(title = "Bereit.", text = "Deine nächste Eingabe ers
     <p class="eyebrow">Review</p>
     <h3>${escapeHtml(title)}</h3>
     <p>${escapeHtml(text)}</p>
-    <div class="empty-actions">
-      <button class="ghost" type="button" data-empty-action="example">Beispiel laden</button>
-    </div>
   `;
-  wrapper.querySelector('[data-empty-action="example"]')?.addEventListener("click", () => {
-    loadExampleNote();
-  });
   els.reviewPanel.replaceChildren(wrapper);
 }
 
 function renderAll() {
   renderCategories();
   renderAgendaBoard();
-  renderHomeFocus();
   renderRecent();
   renderInbox();
   renderSearch();
@@ -2091,65 +2033,6 @@ function renderInbox() {
 function renderRecent() {
   const items = activeItems().slice(0, 3);
   renderList(els.recentList, items, "Noch nichts gespeichert.", "recent");
-}
-
-function renderHomeFocus() {
-  const items = getHomeFocusItems();
-  const summary = buildHomeFocusSummary(items);
-  els.focusSummary.replaceChildren(summary);
-  renderList(els.focusList, items.slice(0, 3), "Heute ist noch nichts akut. Du kannst entspannt neu erfassen.", "focus");
-}
-
-function getHomeFocusItems() {
-  const now = new Date();
-  const today = startOfDay(now);
-  const nextWeek = addDays(today, 7);
-  return activeItems()
-    .filter((item) => {
-      if (!item.dueStart) return false;
-      const due = new Date(item.dueStart);
-      return due <= nextWeek;
-    })
-    .sort((a, b) => compareFocusPriority(a, b, now));
-}
-
-function compareFocusPriority(a, b, now = new Date()) {
-  const scoreA = getFocusPriorityScore(a, now);
-  const scoreB = getFocusPriorityScore(b, now);
-  if (scoreA !== scoreB) return scoreA - scoreB;
-  const dueA = new Date(a.dueStart || a.agendaDate || a.createdAt);
-  const dueB = new Date(b.dueStart || b.agendaDate || b.createdAt);
-  return dueA - dueB;
-}
-
-function getFocusPriorityScore(item, now = new Date()) {
-  const dueState = getDueVisualState(item, now);
-  const priority = getItemPriority(item);
-  const stateScore = { overdue: 0, today: 1, tomorrow: 2, "": 3 }[dueState] ?? 3;
-  const priorityScore = { high: 0, medium: 1, low: 2 }[priority] ?? 1;
-  return stateScore * 10 + priorityScore;
-}
-
-function buildHomeFocusSummary(items) {
-  const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
-  const overdue = items.filter((item) => getDueVisualState(item) === "overdue").length;
-  const dueToday = items.filter((item) => item.dueStart && sameDay(new Date(item.dueStart), today)).length;
-  const dueTomorrow = items.filter((item) => item.dueStart && sameDay(new Date(item.dueStart), tomorrow)).length;
-  const next = items[0];
-  const card = document.createElement("article");
-  card.className = "summary-card home-focus-card";
-  card.innerHTML = `
-    <p class="eyebrow">Heute im Blick</p>
-    <h3>${next ? escapeHtml(cleanDisplayText(next.title)) : "Gerade ist alles ruhig"}</h3>
-    <p class="settings-note">${next ? `Nächster Fokus: ${escapeHtml(formatDueBadge(next))}` : "Deine nächsten fälligen Einträge erscheinen hier automatisch."}</p>
-    <div class="summary-pills">
-      ${overdue ? `<span class="setting-chip warn">${overdue} überfällig</span>` : `<span class="setting-chip muted">Nichts überfällig</span>`}
-      <span class="setting-chip">${dueToday} heute</span>
-      <span class="setting-chip muted">${dueTomorrow} morgen</span>
-    </div>
-  `;
-  return card;
 }
 
 function activeItems() {
@@ -2335,7 +2218,6 @@ function renderGroupedInbox(items) {
       groupItems.replaceChildren(...group.items.map(renderItem));
     } else {
       const empty = buildEmptyBox("Bereit für neue Einträge.", [
-        { label: "Beispiel laden", action: "example" },
         { label: "Notiz erstellen", action: "capture" },
       ]);
       groupItems.replaceChildren(empty);
@@ -2987,92 +2869,14 @@ function addHours(date, amount) {
   return new Date(date.getTime() + amount * 3600000);
 }
 
-function loadExampleNote() {
-  els.captureInput.value = EXAMPLE_NOTE;
-  setView("capture");
-  els.captureInput.focus();
-  renderReviewEmpty("Beispiel geladen.", "Du kannst die Eingabe direkt prüfen oder noch anpassen.");
-  showToast("Beispiel geladen");
-}
-
-function applyQuickCapture(mode) {
-  setView("capture");
-  const presets = {
-    task: {
-      kind: "task",
-      placeholder: "Zum Beispiel: Mama anrufen oder Rechnung zahlen",
-      toast: "Schnellerfassung für Aufgaben aktiv",
-    },
-    event: {
-      kind: "event",
-      placeholder: "Zum Beispiel: Freitag 16 Uhr Training",
-      toast: "Schnellerfassung für Termine aktiv",
-    },
-    shopping: {
-      kind: "shopping",
-      placeholder: "Zum Beispiel: Milch, Brot und Eier kaufen",
-      toast: "Schnellerfassung für Einkauf aktiv",
-    },
-    idea: {
-      kind: "idea",
-      placeholder: "Zum Beispiel: Idee für neue Website",
-      toast: "Schnellerfassung für Ideen aktiv",
-    },
-  };
-  if (mode === "voice") {
-    els.captureInput.focus();
-    showToast("Sprachnotiz startet");
-    window.setTimeout(() => toggleSpeech(), 120);
-    return;
-  }
-  const preset = presets[mode];
-  if (!preset) return;
-  state.selectedKind = preset.kind;
-  renderCategories();
-  els.captureInput.placeholder = preset.placeholder;
-  els.captureInput.focus();
-  renderReviewEmpty("Schnellerfassung aktiv.", "Dein nächster Eintrag wird direkt in diesen Bereich eingeordnet, kann aber weiterhin intelligent erweitert werden.");
-  showToast(preset.toast);
-}
-
-async function pasteFromClipboardToCapture() {
-  if (!navigator.clipboard?.readText) {
-    showToast("Zwischenablage wird in diesem Browser nicht unterstützt");
-    return;
-  }
-  try {
-    const text = (await navigator.clipboard.readText()).trim();
-    if (!text) {
-      showToast("Zwischenablage ist leer");
-      return;
-    }
-    els.captureInput.value = text;
-    setView("capture");
-    els.captureInput.focus();
-    renderReviewEmpty("Zwischenablage übernommen.", "Du kannst den Text direkt aufteilen und einordnen.");
-    showToast("Text eingefügt");
-  } catch {
-    showToast("Zwischenablage konnte nicht gelesen werden");
-  }
-}
-
 function buildContextualEmptyState(text, variant = "default") {
-  if (variant === "focus") {
-    return buildEmptyBox(text, [
-      { label: "Notiz erstellen", action: "capture" },
-      { label: "Beispiel laden", action: "example" },
-    ]);
-  }
   if (variant === "recent") {
-    return buildEmptyBox(text, [
-      { label: "Beispiel laden", action: "example" },
-      { label: "Notiz erstellen", action: "capture" },
-    ]);
+    return buildEmptyBox(text, [{ label: "Notiz erstellen", action: "capture" }]);
   }
   if (variant === "search-idle") {
     return buildEmptyBox(text, [
       { label: "Zur Inbox", action: "inbox" },
-      { label: "Beispiel laden", action: "example" },
+      { label: "Notiz erstellen", action: "capture" },
     ]);
   }
   if (variant === "search-empty") {
@@ -3084,10 +2888,10 @@ function buildContextualEmptyState(text, variant = "default") {
   if (variant === "agenda-day") {
     return buildEmptyBox(text, [
       { label: "Termin erstellen", action: "agenda-create" },
-      { label: "Beispiel laden", action: "example" },
+      { label: "Notiz erstellen", action: "capture" },
     ]);
   }
-  return buildEmptyBox(text, [{ label: "Beispiel laden", action: "example" }]);
+  return buildEmptyBox(text, [{ label: "Notiz erstellen", action: "capture" }]);
 }
 
 function buildEmptyBox(text, actions = []) {
@@ -3104,10 +2908,6 @@ function buildEmptyBox(text, actions = []) {
 }
 
 function runEmptyStateAction(action) {
-  if (action === "example") {
-    loadExampleNote();
-    return;
-  }
   if (action === "capture") {
     setView("capture");
     els.captureInput.focus();
@@ -3732,91 +3532,6 @@ function dismissInstallPrompt() {
   saveSettings();
   updateInstallUi();
   showToast("Installationshinweis ausgeblendet");
-}
-
-function updateGuestModeUi() {
-  if (!els.guestModeCard) return;
-  const isGuest = !state.loggedIn;
-  const shouldShow = isGuest && !state.guestModeHintDismissed;
-  els.guestModeCard.hidden = !shouldShow;
-  if (!shouldShow) return;
-
-  const activeCount = activeItems().length;
-  const latestItem = [...state.items]
-    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0];
-  const latestLabel = latestItem ? formatDateTime(latestItem.updatedAt || latestItem.createdAt, false) : "";
-  const safetyLevel = getGuestSafetyLevel(activeCount);
-  const primaryText = state.syncEnabled && state.cloudUser
-    ? "Deine Daten werden bereits zwischen Geräten synchronisiert."
-    : state.storageReady
-      ? state.storagePersisted
-        ? "Deine Einträge werden lokal in IndexedDB gespeichert. Backup und Sync kannst du jederzeit später ergänzen."
-        : "Deine Einträge werden lokal im Browser gespeichert. Ein Backup ist sinnvoll, wenn du sie zusätzlich absichern willst."
-      : "Deine Einträge bleiben lokal auf diesem Gerät, bis der Speicher vollständig vorbereitet ist.";
-  if (els.guestModeText) els.guestModeText.textContent = primaryText;
-
-  const meta = [];
-  if (state.storageReady) meta.push(state.storagePersisted ? "Lokal gesichert" : "Lokal aktiv");
-  if (state.lastBackupAt) meta.push("Backup vorhanden");
-  else meta.push("Noch kein Backup");
-  if (state.syncEnabled && state.cloudUser) meta.push("Sync aktiv");
-  else meta.push("Ohne Konto nutzbar");
-  if (latestLabel) meta.push(`Zuletzt geändert ${latestLabel}`);
-  if (els.guestModeMeta) {
-    els.guestModeMeta.replaceChildren(
-      ...meta.map((label, index) => chip(label, label.includes("kein") ? "warn" : index === 0 ? "ok" : "")),
-    );
-  }
-  if (els.guestBackupNowButton) {
-    els.guestBackupNowButton.hidden = Boolean(state.lastBackupAt);
-  }
-  if (els.guestModeChecklist) {
-    const checklist = [
-      {
-        title: activeCount ? `${activeCount} Einträge lokal gespeichert` : "Bereit für deinen ersten Eintrag",
-        text: activeCount
-          ? "Deine aktuellen Einträge liegen bereits auf diesem Gerät und bleiben auch ohne Konto nutzbar."
-          : "Sobald du etwas speicherst, bleibt es lokal auf diesem Gerät erhalten.",
-        ok: activeCount > 0,
-      },
-      {
-        title: state.lastBackupAt ? "Backup bereits erstellt" : `Backup ${safetyLevel === "warn" ? "empfohlen" : "optional"}`,
-        text: state.lastBackupAt
-          ? `Letztes Backup: ${formatDateTime(state.lastBackupAt, false)}.`
-          : safetyLevel === "warn"
-            ? "Du nutzt die App schon aktiv. Ein Backup gibt dir spürbar mehr Ruhe."
-            : "Für die ersten Schritte reicht lokal speichern völlig aus. Ein Backup ist später mit einem Klick möglich.",
-        ok: Boolean(state.lastBackupAt),
-      },
-      {
-        title: state.syncEnabled && state.cloudUser ? "Sync zwischen Geräten aktiv" : "Sync erst dann, wenn es sich lohnt",
-        text: state.syncEnabled && state.cloudUser
-          ? "Deine Einträge können jetzt auf mehreren Geräten auftauchen."
-          : "Ein Konto brauchst du erst, wenn du Backup und Sync zwischen Geräten wirklich möchtest.",
-        ok: Boolean(state.syncEnabled && state.cloudUser),
-      },
-    ];
-    els.guestModeChecklist.replaceChildren(...checklist.map(renderGuestCheckItem));
-  }
-}
-
-function getGuestSafetyLevel(activeCount) {
-  if (state.lastBackupAt || (state.syncEnabled && state.cloudUser)) return "safe";
-  if (activeCount >= 3) return "warn";
-  return "calm";
-}
-
-function renderGuestCheckItem(item) {
-  const card = document.createElement("div");
-  card.className = `guest-check-item ${item.ok ? "ok" : "warn"}`;
-  card.innerHTML = `
-    <span class="guest-check-mark" aria-hidden="true">${item.ok ? "✓" : "!"}</span>
-    <div>
-      <strong>${escapeHtml(item.title)}</strong>
-      <span>${escapeHtml(item.text)}</span>
-    </div>
-  `;
-  return card;
 }
 
 function openSettingsPanel(target) {

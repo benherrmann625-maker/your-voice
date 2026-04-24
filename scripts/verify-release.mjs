@@ -74,18 +74,18 @@ check("reminder quick edit", app.includes("setItemReminderPreset") && app.includ
 check("snooze actions", app.includes("snoozeItem") && app.includes('data-snooze="10m"') && app.includes("formatSnoozeLabel"));
 check("inline quick edit", app.includes("renderQuickEditPanel") && app.includes("saveQuickEdit") && app.includes('data-action="quick-edit"') && css.includes(".quick-edit-panel"));
 check("due highlighting", app.includes("getDueVisualState") && app.includes("getUrgencyCounts") && css.includes(".item-card.due-overdue") && css.includes(".chip.due"));
-check("home focus view", html.includes("focusList") && app.includes("renderHomeFocus") && app.includes("getHomeFocusItems") && css.includes(".focus-section"));
-check("quick capture flow", html.includes("data-quick-capture=\"task\"") && html.includes("pasteCaptureButton") && app.includes("applyQuickCapture") && app.includes("pasteFromClipboardToCapture"));
-check("guest mode guidance", html.includes("guestModeCard") && app.includes("updateGuestModeUi") && app.includes("openSettingsPanel") && css.includes(".guest-mode-card"));
 check("aha review guidance", app.includes("buildAhaHeadline") && app.includes("buildAhaText") && css.includes(".aha-panel"));
-check("clearer capture cta", html.includes('id="parseButton"') && html.includes("Aufteilen und einordnen"));
-check("example note flow", html.includes("loadExampleButton") && app.includes("EXAMPLE_NOTE") && app.includes("loadExampleNote"));
+check("simplified capture cta", html.includes('id="parseButton"') && html.includes("Strukturieren"));
+check("home focus removed", !html.includes("focusList") && !app.includes("renderHomeFocus") && !css.includes(".focus-section"));
+check("quick capture removed", !html.includes("data-quick-capture=\"task\"") && !html.includes("pasteCaptureButton") && !app.includes("applyQuickCapture") && !app.includes("pasteFromClipboardToCapture"));
+check("guest overlay removed", !html.includes("guestModeCard") && !app.includes("updateGuestModeUi") && !css.includes(".guest-mode-card"));
+check("example actions removed", !html.includes("loadExampleButton") && !html.includes("Beispiel laden") && !app.includes("loadExampleNote"));
 check("interactive empty states", app.includes("buildContextualEmptyState") && app.includes("runEmptyStateAction") && css.includes(".empty-actions"));
 check("calendar ics export", html.includes("calendarExportButton") && app.includes("BEGIN:VCALENDAR") && app.includes("buildEventIcs") && app.includes("buildTodoIcs"));
 check("daily summary card", html.includes("dailySummaryToggle") && app.includes("buildDailySummaryCard") && app.includes("formatDueBadge") && css.includes(".summary-card"));
 check(
   "pwa install flow",
-  html.includes("installAppButton") &&
+  html.includes("installSettingsButton") &&
     app.includes("beforeinstallprompt") &&
     app.includes("handleIncomingLaunchContext") &&
     manifest.includes('"share_target"') &&

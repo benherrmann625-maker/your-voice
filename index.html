@@ -20,7 +20,7 @@
             </svg>
           </div>
           <div>
-            <p class="eyebrow">Premium Organizer</p>
+            <p class="eyebrow">Organizer</p>
             <h1>Your <span>Voice</span></h1>
           </div>
         </div>
@@ -60,7 +60,7 @@
       <main class="main">
         <section class="topbar">
           <div>
-            <p class="eyebrow">Voice Organizer</p>
+            <p class="eyebrow">Workspace</p>
             <h2 id="viewTitle">Schnell erfassen</h2>
           </div>
           <div class="status-pill" id="syncStatus">
@@ -78,7 +78,7 @@
               <div class="mic-zone">
                 <div class="capture-kicker">
                   <p class="eyebrow">Your Voice</p>
-                  <h3>Sprich jetzt etwas ein.</h3>
+                  <h3>Gedanken strukturieren.</h3>
                 </div>
                 <button class="mic-button" id="micButton" type="button" aria-label="Sprache aufnehmen">
                   <span class="mic-icon" aria-hidden="true"></span>
@@ -96,74 +96,20 @@
                 placeholder="Sag oder schreibe einen Gedanken, eine Aufgabe, einen Termin oder eine Einkaufsliste."
               ></textarea>
 
-              <div class="quick-capture-bar" aria-label="Schnellerfassung">
-                <button class="ghost tiny-button" type="button" data-quick-capture="task">Aufgabe</button>
-                <button class="ghost tiny-button" type="button" data-quick-capture="event">Termin</button>
-                <button class="ghost tiny-button" type="button" data-quick-capture="shopping">Einkauf</button>
-                <button class="ghost tiny-button" type="button" data-quick-capture="idea">Idee</button>
-                <button class="ghost tiny-button" type="button" data-quick-capture="voice">Sprachnotiz</button>
-                <button class="ghost tiny-button" id="pasteCaptureButton" type="button">Aus Zwischenablage</button>
-              </div>
-
               <div class="capture-actions">
-                <button class="primary" id="parseButton" type="button">Aufteilen und einordnen</button>
-                <button class="ghost" id="loadExampleButton" type="button">Beispiel laden</button>
+                <button class="primary" id="parseButton" type="button">Strukturieren</button>
                 <button class="ghost" id="clearInputButton" type="button">Leeren</button>
-              </div>
-
-              <div class="install-prompt-card" id="installPromptCard" hidden>
-                <div>
-                  <p class="eyebrow">Schneller zugreifen</p>
-                  <h3>Your Voice als App nutzen</h3>
-                  <p class="settings-note" id="installHintText">
-                    Installiere die Web-App fuer schnellere Erfassung, Offline-Basis und spaetere Push-Erinnerungen.
-                  </p>
-                </div>
-                <div class="install-actions">
-                  <button class="primary" id="installAppButton" type="button">App installieren</button>
-                  <button class="ghost" id="dismissInstallPromptButton" type="button">Spaeter</button>
-                </div>
-              </div>
-
-              <div class="guest-mode-card" id="guestModeCard">
-                <div>
-                  <p class="eyebrow">Gastmodus</p>
-                  <h3>Direkt loslegen, ohne Konto</h3>
-                  <p class="settings-note" id="guestModeText">
-                    Deine Einträge werden lokal auf diesem Gerät gespeichert. Backup und Sync bleiben optional.
-                  </p>
-                </div>
-                <div class="guest-mode-meta" id="guestModeMeta"></div>
-                <div class="guest-mode-checklist" id="guestModeChecklist"></div>
-                <div class="install-actions">
-                  <button class="primary" id="guestBackupNowButton" type="button">Jetzt Backup sichern</button>
-                  <button class="ghost" id="openBackupButton" type="button">Backup ansehen</button>
-                  <button class="ghost" id="openSyncSettingsButton" type="button">Sync später aktivieren</button>
-                  <button class="ghost" id="dismissGuestCardButton" type="button">Ausblenden</button>
-                </div>
               </div>
             </div>
 
             <aside class="review-panel" id="reviewPanel" aria-live="polite">
               <div class="empty-state">
                 <p class="eyebrow">Review</p>
-                <h3>Bereit.</h3>
+                <h3>Bereit</h3>
                 <p>Deine nächste Eingabe erscheint hier ganz kurz zur Bestätigung.</p>
               </div>
             </aside>
           </div>
-
-          <section class="focus-section" aria-labelledby="focusTitle">
-            <div class="list-toolbar">
-              <div>
-                <p class="eyebrow">Heute</p>
-                <h3 id="focusTitle">Im Fokus</h3>
-              </div>
-              <button class="ghost" type="button" data-view-link="agenda">Agenda öffnen</button>
-            </div>
-            <div class="focus-summary" id="focusSummary"></div>
-            <div class="item-list compact" id="focusList"></div>
-          </section>
 
           <details class="recent-section" aria-labelledby="recentTitle">
             <summary class="list-toolbar">
