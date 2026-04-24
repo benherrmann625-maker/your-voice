@@ -39,13 +39,16 @@ check("app.js syntax", syntax.status === 0, syntax.stderr.trim());
 });
 
 [
-  "validateAuthForm",
+  "supabase",
   "signInWithPassword",
   "registerWithPassword",
   "sendPasswordReset",
   "cleanAuthUrl",
-  "resetPasswordForEmail",
-].forEach((token) => check(`auth token: ${token}`, app.includes(token)));
+  "syncCloud",
+  "setupInstallExperience",
+  "promptInstallApp",
+  "buildDailySummaryCard",
+].forEach((token) => check(`legacy token removed: ${token}`, !app.includes(token)));
 
 [
   "pinned",
@@ -87,15 +90,20 @@ check("guest overlay removed", !html.includes("guestModeCard") && !app.includes(
 check("example actions removed", !html.includes("loadExampleButton") && !html.includes("Beispiel laden") && !app.includes("loadExampleNote"));
 check("interactive empty states", app.includes("buildContextualEmptyState") && app.includes("runEmptyStateAction") && css.includes(".empty-actions"));
 check("calendar ics export", html.includes("calendarExportButton") && app.includes("BEGIN:VCALENDAR") && app.includes("buildEventIcs") && app.includes("buildTodoIcs"));
-check("daily summary card", html.includes("dailySummaryToggle") && app.includes("buildDailySummaryCard") && app.includes("formatDueBadge") && css.includes(".summary-card"));
+check("daily summary removed", !html.includes("dailySummaryToggle") && !app.includes("buildDailySummaryCard"));
 check(
-  "pwa install flow",
-  html.includes("installSettingsButton") &&
-    app.includes("beforeinstallprompt") &&
-    app.includes("handleIncomingLaunchContext") &&
-    manifest.includes('"share_target"') &&
-    manifest.includes('"shortcuts"'),
+  "install prompt removed",
+  !html.includes("installSettingsButton") && !app.includes("beforeinstallprompt") && !app.includes("promptInstallApp"),
 );
+check(
+  "supabase ui removed",
+  !html.includes("cloudSetupPanel") &&
+    !html.includes("loginPanel") &&
+    !html.includes("magicLinkButton") &&
+    !html.includes("registerButton") &&
+    !html.includes("logoutButton"),
+);
+check("share target still available", app.includes("handleIncomingLaunchContext") && manifest.includes('"share_target"') && manifest.includes('"shortcuts"'));
 check("tips collapsed by default", !html.includes('<details class="settings-panel" open>\n              <summary>Wie sprechen</summary>'));
 check("cache version advanced", /your-voice-v\d+/.test(sw));
 check("goldset has release examples", goldset.length >= 19);

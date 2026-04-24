@@ -6,13 +6,6 @@ const INDEXED_DB_VERSION = 1;
 const INDEXED_DB_STORE = "app_state";
 const INDEXED_ITEMS_KEY = "items";
 const INDEXED_SETTINGS_KEY = "settings";
-const runtimeConfig =
-  typeof window !== "undefined" && window.__YOUR_VOICE_CONFIG__ && typeof window.__YOUR_VOICE_CONFIG__ === "object"
-    ? window.__YOUR_VOICE_CONFIG__
-    : {};
-const envSupabaseUrl = typeof runtimeConfig.supabaseUrl === "string" ? runtimeConfig.supabaseUrl.trim() : "";
-const envSupabaseAnonKey = typeof runtimeConfig.supabaseAnonKey === "string" ? runtimeConfig.supabaseAnonKey.trim() : "";
-const cloudConfigLocked = Boolean(envSupabaseUrl && envSupabaseAnonKey);
 const savedSettings = loadSettings();
 
 const state = {
@@ -23,9 +16,6 @@ const state = {
   recognizing: false,
   selectedKind: "",
   theme: savedSettings.theme || "light",
-  accountEmail: savedSettings.accountEmail || "",
-  loggedIn: Boolean(savedSettings.loggedIn),
-  syncEnabled: Boolean(savedSettings.syncEnabled),
   colorScheme: savedSettings.colorScheme || "Indigo",
   styleMode: savedSettings.styleMode || "Minimal",
   fontSize: savedSettings.fontSize || "Normal",
@@ -37,15 +27,7 @@ const state = {
   defaultCategory: savedSettings.defaultCategory || "note",
   customCategories: Array.isArray(savedSettings.customCategories) ? savedSettings.customCategories : [],
   remindersEnabled: savedSettings.remindersEnabled !== false,
-  dailySummary: Boolean(savedSettings.dailySummary),
   focusMode: Boolean(savedSettings.focusMode),
-  privacyMode: savedSettings.privacyMode || "Lokal",
-  supabaseUrl: envSupabaseUrl || savedSettings.supabaseUrl || "",
-  supabaseAnonKey: envSupabaseAnonKey || savedSettings.supabaseAnonKey || "",
-  authStatusMessage: savedSettings.authStatusMessage || "Noch kein Login-Versuch.",
-  cloudUser: null,
-  cloudReady: false,
-  syncBusy: false,
   hideDone: savedSettings.hideDone !== false,
   inboxArchiveView: "active",
   inboxGroupOrder: Array.isArray(savedSettings.inboxGroupOrder) ? savedSettings.inboxGroupOrder : [],
@@ -57,11 +39,8 @@ const state = {
   searchDateFilter: "any",
   searchCustomDate: "",
   searchPriorityFilter: "any",
-  lastSyncAt: savedSettings.lastSyncAt || "",
   lastBackupAt: savedSettings.lastBackupAt || "",
   lastImportedAt: savedSettings.lastImportedAt || "",
-  installDismissedAt: savedSettings.installDismissedAt || "",
-  guestModeHintDismissed: Boolean(savedSettings.guestModeHintDismissed),
   calendarView: "month",
   selectedDate: startOfDay(new Date()),
   calendarDate: startOfDay(new Date()),
@@ -70,9 +49,6 @@ const state = {
   storagePersisted: false,
   storageBackend: typeof indexedDB !== "undefined" ? "indexeddb" : "localstorage",
   storageWarning: "",
-  installReady: false,
-  standaloneMode: false,
-  iosInstallHint: false,
 };
 
 const els = {
@@ -120,21 +96,8 @@ const els = {
   importFileInput: document.querySelector("#importFileInput"),
   calendarExportButton: document.querySelector("#calendarExportButton"),
   deleteAllButton: document.querySelector("#deleteAllButton"),
-  syncStatus: document.querySelector("#syncStatus"),
   themeButton: document.querySelector("#themeButton"),
   settingsThemeButton: document.querySelector("#settingsThemeButton"),
-  installSettingsButton: document.querySelector("#installSettingsButton"),
-  installStatusText: document.querySelector("#installStatusText"),
-  syncToggle: document.querySelector("#syncToggle"),
-  supabaseUrlInput: document.querySelector("#supabaseUrlInput"),
-  supabaseAnonKeyInput: document.querySelector("#supabaseAnonKeyInput"),
-  toggleKeyVisibilityButton: document.querySelector("#toggleKeyVisibilityButton"),
-  redirectUrlInput: document.querySelector("#redirectUrlInput"),
-  copyRedirectButton: document.querySelector("#copyRedirectButton"),
-  connectCloudButton: document.querySelector("#connectCloudButton"),
-  manualSyncButton: document.querySelector("#manualSyncButton"),
-  cloudStatusText: document.querySelector("#cloudStatusText"),
-  authDebugText: document.querySelector("#authDebugText"),
   colorSchemeInput: document.querySelector("#colorSchemeInput"),
   styleModeInput: document.querySelector("#styleModeInput"),
   fontSizeInput: document.querySelector("#fontSizeInput"),
@@ -148,19 +111,10 @@ const els = {
   addCustomCategoryButton: document.querySelector("#addCustomCategoryButton"),
   customCategoryList: document.querySelector("#customCategoryList"),
   remindersToggle: document.querySelector("#remindersToggle"),
-  dailySummaryToggle: document.querySelector("#dailySummaryToggle"),
   focusModeToggle: document.querySelector("#focusModeToggle"),
-  privacyModeInput: document.querySelector("#privacyModeInput"),
   backupButton: document.querySelector("#backupButton"),
   backupStatusText: document.querySelector("#backupStatusText"),
   localStorageNote: document.querySelector("#localStorageNote"),
-  loginButton: document.querySelector("#loginButton"),
-  registerButton: document.querySelector("#registerButton"),
-  magicLinkButton: document.querySelector("#magicLinkButton"),
-  resetPasswordButton: document.querySelector("#resetPasswordButton"),
-  logoutButton: document.querySelector("#logoutButton"),
-  emailInput: document.querySelector("#emailInput"),
-  passwordInput: document.querySelector("#passwordInput"),
   contactNameInput: document.querySelector("#contactNameInput"),
   contactEmailInput: document.querySelector("#contactEmailInput"),
   contactMessageInput: document.querySelector("#contactMessageInput"),
@@ -219,12 +173,10 @@ const weekdays = {
 };
 const weekdayCodes = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
-let supabaseClient = null;
 let indexedDbPromise = null;
 let persistenceQueue = Promise.resolve();
 let reminderRefreshHandle = 0;
 const reminderTimers = new Map();
-let deferredInstallPrompt = null;
 
 void init();
 
@@ -234,10 +186,7 @@ async function init() {
   registerServiceWorker();
   setupSpeech();
   bindEvents();
-  setupInstallExperience();
-  handleIncomingLaunchContext();
   renderAll();
-  void initCloud();
 }
 
 function bindEvents() {
@@ -259,9 +208,6 @@ function bindEvents() {
   els.clearInputButton.addEventListener("click", () => {
     els.captureInput.value = "";
     els.captureInput.focus();
-  });
-  els.installSettingsButton?.addEventListener("click", () => {
-    void promptInstallApp();
   });
 
   els.micButton.addEventListener("click", toggleSpeech);
@@ -299,36 +245,6 @@ function bindEvents() {
 
   document.querySelectorAll("[data-view-link]").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.viewLink));
-  });
-
-  els.loginButton.addEventListener("click", () => {
-    const email = els.emailInput.value.trim();
-    const password = els.passwordInput.value;
-    if (!validateAuthForm(email, password, "login")) return;
-    void signInWithPassword(email, password);
-  });
-
-  els.registerButton.addEventListener("click", () => {
-    const email = els.emailInput.value.trim();
-    const password = els.passwordInput.value;
-    if (!validateAuthForm(email, password, "register")) return;
-    void registerWithPassword(email, password);
-  });
-
-  els.magicLinkButton.addEventListener("click", () => {
-    const email = els.emailInput.value.trim();
-    if (!validateAuthForm(email, "", "magic")) return;
-    void signInWithMagicLink(email);
-  });
-
-  els.resetPasswordButton.addEventListener("click", () => {
-    const email = els.emailInput.value.trim();
-    if (!validateAuthForm(email, "", "magic")) return;
-    void sendPasswordReset(email);
-  });
-
-  els.logoutButton.addEventListener("click", () => {
-    void signOutCloud();
   });
 
   els.searchInput.addEventListener("input", renderSearch);
@@ -385,6 +301,7 @@ function bindEvents() {
     showToast("Lokale Daten gelöscht");
   });
   els.sendContactButton.addEventListener("click", sendContactMessage);
+  handleIncomingLaunchContext();
 }
 
 function setView(view) {
@@ -397,14 +314,6 @@ function setView(view) {
 }
 
 function bindSettingsEvents() {
-  els.syncToggle.addEventListener("change", () => {
-    if (els.syncToggle.checked && !state.loggedIn) {
-      els.syncToggle.checked = false;
-      showToast("Erst per E-Mail anmelden");
-      return;
-    }
-    updateSetting("syncEnabled", els.syncToggle.checked);
-  });
   els.colorSchemeInput.addEventListener("change", () => updateSetting("colorScheme", els.colorSchemeInput.value));
   els.styleModeInput.addEventListener("change", () => updateSetting("styleMode", els.styleModeInput.value));
   els.fontSizeInput.addEventListener("change", () => updateSetting("fontSize", els.fontSizeInput.value));
@@ -416,42 +325,9 @@ function bindSettingsEvents() {
   els.defaultCategoryInput.addEventListener("change", () => updateSetting("defaultCategory", els.defaultCategoryInput.value));
   els.addCustomCategoryButton?.addEventListener("click", addCustomCategory);
   els.remindersToggle.addEventListener("change", () => updateSetting("remindersEnabled", els.remindersToggle.checked));
-  els.dailySummaryToggle.addEventListener("change", () => updateSetting("dailySummary", els.dailySummaryToggle.checked));
   els.focusModeToggle.addEventListener("change", () => updateSetting("focusMode", els.focusModeToggle.checked));
-  els.privacyModeInput.addEventListener("change", () => updateSetting("privacyMode", els.privacyModeInput.value));
   els.backupButton.addEventListener("click", () => {
     exportData();
-  });
-  els.toggleKeyVisibilityButton.addEventListener("click", () => {
-    const isHidden = els.supabaseAnonKeyInput.type === "password";
-    els.supabaseAnonKeyInput.type = isHidden ? "text" : "password";
-    els.toggleKeyVisibilityButton.textContent = isHidden ? "Verbergen" : "Anzeigen";
-  });
-  els.copyRedirectButton.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(getRedirectUrl());
-      showToast("Redirect URL kopiert");
-    } catch {
-      els.redirectUrlInput.select();
-      showToast("Redirect URL markieren und kopieren");
-    }
-  });
-  els.connectCloudButton.addEventListener("click", () => {
-    if (cloudConfigLocked) {
-      showToast("Supabase kommt aus den Deployment-Variablen");
-      return;
-    }
-    state.supabaseUrl = els.supabaseUrlInput.value.trim();
-    state.supabaseAnonKey = els.supabaseAnonKeyInput.value.trim();
-    if (!state.supabaseUrl || !state.supabaseAnonKey) {
-      showToast("URL und Anon Key einfügen");
-      return;
-    }
-    saveSettings();
-    void initCloud(true);
-  });
-  els.manualSyncButton.addEventListener("click", () => {
-    void syncCloud("manual");
   });
 }
 
@@ -519,7 +395,6 @@ function createManualAgendaEvent() {
   renderAll();
   showToast(recurrenceRule ? "Wiederholung gespeichert" : "Termin gespeichert");
   if (Number(reminderOffset) > 0 && state.remindersEnabled) void ensureReminderPermission();
-  if (state.syncEnabled && state.cloudUser) void syncCloud("manual-event");
 }
 
 function buildManualRecurrenceRule(date) {
@@ -577,351 +452,6 @@ function updateSetting(key, value) {
   saveSettings();
   applySettings();
   renderAll();
-  if (key === "syncEnabled" && value) void syncCloud("settings");
-}
-
-function validateAuthForm(email, password, mode) {
-  if (!isValidEmail(email)) {
-    state.authStatusMessage = "Bitte gib eine gültige E-Mail-Adresse ein.";
-    saveSettings();
-    applySettings();
-    showToast("E-Mail prüfen");
-    return false;
-  }
-  if (mode !== "magic" && password.length < 6) {
-    state.authStatusMessage = "Das Passwort braucht mindestens 6 Zeichen.";
-    saveSettings();
-    applySettings();
-    showToast("Passwort zu kurz");
-    return false;
-  }
-  return true;
-}
-
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function hasCloudConfig() {
-  return Boolean(state.supabaseUrl && state.supabaseAnonKey);
-}
-
-async function initCloud(showResult = false) {
-  if (!hasCloudConfig()) {
-    state.cloudReady = false;
-    applySettings();
-    if (showResult) showToast("Supabase URL und Key eintragen");
-    return;
-  }
-  if (!window.supabase?.createClient) {
-    state.cloudReady = false;
-    applySettings();
-    if (showResult) showToast("Supabase konnte nicht geladen werden");
-    return;
-  }
-
-  try {
-    supabaseClient = window.supabase.createClient(state.supabaseUrl, state.supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    });
-
-    const { data, error } = await supabaseClient.auth.getSession();
-    if (error) throw error;
-
-    state.cloudReady = true;
-    state.cloudUser = data.session?.user || null;
-    state.loggedIn = Boolean(state.cloudUser);
-    if (state.cloudUser?.email) state.accountEmail = state.cloudUser.email;
-
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      state.cloudUser = session?.user || null;
-      state.loggedIn = Boolean(state.cloudUser);
-      if (state.cloudUser?.email) state.accountEmail = state.cloudUser.email;
-      if (event === "SIGNED_IN" && state.cloudUser) {
-        state.authStatusMessage = `Eingeloggt als ${state.cloudUser.email || state.accountEmail}.`;
-        cleanAuthUrl();
-      }
-      if (event === "SIGNED_OUT") state.authStatusMessage = "Abgemeldet.";
-      saveSettings();
-      applySettings();
-      if (state.syncEnabled && state.cloudUser) void syncCloud("auth");
-    });
-
-    saveSettings();
-    applySettings();
-    if (state.cloudUser) cleanAuthUrl();
-    if (showResult) showToast(state.cloudUser ? "Cloud verbunden" : "Cloud bereit");
-    if (state.syncEnabled && state.cloudUser) await syncCloud("startup");
-  } catch (error) {
-    state.cloudReady = false;
-    state.cloudUser = null;
-    applySettings();
-    if (showResult) showToast(`Cloud Fehler: ${error.message}`);
-  }
-}
-
-async function signInWithMagicLink(email) {
-  state.accountEmail = email;
-  state.authStatusMessage = "Magic Link wird angefragt...";
-  saveSettings();
-  applySettings();
-
-  if (!supabaseClient) await initCloud();
-  if (!supabaseClient || !state.cloudReady) {
-    state.authStatusMessage = "Login gestoppt: Cloud ist noch nicht verbunden.";
-    saveSettings();
-    applySettings();
-    showToast("Erst Cloud verbinden");
-    return;
-  }
-
-  const { error } = await supabaseClient.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: getRedirectUrl(),
-    },
-  });
-
-  if (error) {
-    state.authStatusMessage = authErrorText(error);
-    saveSettings();
-    applySettings();
-    showToast("Login fehlgeschlagen");
-    return;
-  }
-
-  state.authStatusMessage = `Magic Link angefragt für ${email}. Wenn keine E-Mail kommt: Spam, Supabase Auth Logs, Redirect URL und SMTP prüfen.`;
-  saveSettings();
-  showToast("Magic Link gesendet");
-  applySettings();
-}
-
-async function signInWithPassword(email, password) {
-  state.accountEmail = email;
-  state.authStatusMessage = "Login wird geprüft...";
-  saveSettings();
-  applySettings();
-
-  if (!supabaseClient) await initCloud();
-  if (!supabaseClient || !state.cloudReady) {
-    state.authStatusMessage = "Login gestoppt: Cloud ist noch nicht verbunden.";
-    saveSettings();
-    applySettings();
-    showToast("Erst Cloud verbinden");
-    return;
-  }
-
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) {
-    state.authStatusMessage = authErrorText(error);
-    saveSettings();
-    applySettings();
-    showToast("Login fehlgeschlagen");
-    return;
-  }
-
-  state.cloudUser = data.user;
-  state.loggedIn = Boolean(data.user);
-  state.accountEmail = data.user?.email || email;
-  state.authStatusMessage = `Eingeloggt als ${state.accountEmail}. Session bleibt gespeichert.`;
-  saveSettings();
-  applySettings();
-  showToast("Eingeloggt");
-  if (state.syncEnabled) await syncCloud("login");
-}
-
-async function registerWithPassword(email, password) {
-  state.accountEmail = email;
-  state.authStatusMessage = "Account wird erstellt...";
-  saveSettings();
-  applySettings();
-
-  if (!supabaseClient) await initCloud();
-  if (!supabaseClient || !state.cloudReady) {
-    state.authStatusMessage = "Registrierung gestoppt: Cloud ist noch nicht verbunden.";
-    saveSettings();
-    applySettings();
-    showToast("Erst Cloud verbinden");
-    return;
-  }
-
-  const { data, error } = await supabaseClient.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: getRedirectUrl(),
-    },
-  });
-  if (error) {
-    state.authStatusMessage = authErrorText(error);
-    saveSettings();
-    applySettings();
-    showToast("Registrierung fehlgeschlagen");
-    return;
-  }
-
-  state.cloudUser = data.session?.user || null;
-  state.loggedIn = Boolean(data.session?.user);
-  state.authStatusMessage = state.loggedIn
-    ? `Registriert und eingeloggt als ${email}.`
-    : `Account erstellt. Bitte bestätige ggf. die E-Mail für ${email}.`;
-  saveSettings();
-  applySettings();
-  showToast(state.loggedIn ? "Registriert" : "Bestätigung nötig");
-  if (state.loggedIn && state.syncEnabled) await syncCloud("register");
-}
-
-async function sendPasswordReset(email) {
-  state.accountEmail = email;
-  state.authStatusMessage = "Passwort-Link wird angefragt...";
-  saveSettings();
-  applySettings();
-
-  if (!supabaseClient) await initCloud();
-  if (!supabaseClient || !state.cloudReady) {
-    state.authStatusMessage = "Passwort-Reset gestoppt: Cloud ist noch nicht verbunden.";
-    saveSettings();
-    applySettings();
-    showToast("Erst Cloud verbinden");
-    return;
-  }
-
-  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-    redirectTo: getRedirectUrl(),
-  });
-  if (error) {
-    state.authStatusMessage = authErrorText(error);
-    saveSettings();
-    applySettings();
-    showToast("Reset fehlgeschlagen");
-    return;
-  }
-
-  state.authStatusMessage = `Passwort-Link gesendet an ${email}. Öffne den Link und setze anschließend dein neues Passwort.`;
-  saveSettings();
-  applySettings();
-  showToast("Passwort-Link gesendet");
-}
-
-async function signOutCloud() {
-  if (supabaseClient) await supabaseClient.auth.signOut();
-  state.loggedIn = false;
-  state.cloudUser = null;
-  state.syncEnabled = false;
-  saveSettings();
-  applySettings();
-  showToast("Abgemeldet");
-}
-
-async function syncCloud(source = "manual") {
-  if (!hasCloudConfig()) {
-    showToast("Cloud nicht konfiguriert");
-    return;
-  }
-  if (!supabaseClient) await initCloud();
-  if (!supabaseClient || !state.cloudUser) {
-    showToast("Bitte anmelden");
-    return;
-  }
-  if (state.syncBusy) return;
-
-  state.syncBusy = true;
-  applySettings();
-
-  try {
-    const payloadRows = state.items.map((item) => ({
-      id: item.id,
-      user_id: state.cloudUser.id,
-      payload: item,
-      updated_at: item.updatedAt || item.createdAt || new Date().toISOString(),
-      deleted: Boolean(item.deletedAt),
-    }));
-
-    if (payloadRows.length) {
-      const { error: upsertError } = await supabaseClient.from("voice_items").upsert(payloadRows, {
-        onConflict: "id",
-      });
-      if (upsertError) throw upsertError;
-    }
-
-    const { data, error } = await supabaseClient
-      .from("voice_items")
-      .select("payload, updated_at, deleted")
-      .eq("user_id", state.cloudUser.id)
-      .order("updated_at", { ascending: false });
-    if (error) throw error;
-
-    const merged = mergeCloudItems(state.items, data || []);
-    state.items = merged;
-    state.lastSyncAt = new Date().toISOString();
-    state.syncEnabled = true;
-    saveItems();
-    saveSettings();
-    renderAll();
-    if (source === "manual") showToast("Synchronisiert");
-  } catch (error) {
-    showToast(`Sync Fehler: ${error.message}`);
-  } finally {
-    state.syncBusy = false;
-    applySettings();
-  }
-}
-
-function mergeCloudItems(localItems, cloudRows) {
-  const map = new Map(localItems.map((item) => [item.id, item]));
-  cloudRows.forEach((row) => {
-    const incoming = row.payload;
-    if (!incoming?.id) return;
-    if (row.deleted) {
-      map.set(incoming.id, { ...incoming, deletedAt: incoming.deletedAt || row.updated_at, updatedAt: incoming.updatedAt || row.updated_at });
-      return;
-    }
-    const existing = map.get(incoming.id);
-    if (!existing || new Date(incoming.updatedAt || row.updated_at) >= new Date(existing.updatedAt || existing.createdAt)) {
-      map.set(incoming.id, incoming);
-    }
-  });
-  return [...map.values()].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
-}
-
-function getCloudStatusText() {
-  if (!hasCloudConfig()) return "Gastmodus aktiv. Du kannst später Backup und Sync ergänzen.";
-  if (!state.cloudReady) return "Cloud-Konfiguration gespeichert, Verbindung nicht aktiv.";
-  if (!state.cloudUser) return "Cloud bereit. Melde dich per Magic Link an.";
-  if (state.syncBusy) return "Synchronisierung läuft...";
-  if (state.lastSyncAt) return `Verbunden als ${state.cloudUser.email || state.accountEmail}. Letzter Sync: ${formatDateTime(state.lastSyncAt, false)}`;
-  return `Verbunden als ${state.cloudUser.email || state.accountEmail}.`;
-}
-
-function getRedirectUrl() {
-  return window.location.href.split("#")[0].split("?")[0];
-}
-
-function cleanAuthUrl() {
-  if (!window.location.hash && !window.location.search.includes("code=")) return;
-  window.history.replaceState({}, document.title, getRedirectUrl());
-}
-
-function authErrorText(error) {
-  const message = error?.message || "Unbekannter Auth-Fehler";
-  const lower = message.toLowerCase();
-  if (lower.includes("email not confirmed")) {
-    return "E-Mail ist noch nicht bestätigt. Öffne die Bestätigungsmail oder prüfe Spam und Supabase Auth Logs.";
-  }
-  if (lower.includes("invalid login credentials")) {
-    return "E-Mail oder Passwort ist falsch. Falls du nur Magic Link genutzt hast, erst registrieren oder Passwort setzen.";
-  }
-  if (lower.includes("signup") || lower.includes("disabled")) {
-    return "Registrierung ist in Supabase deaktiviert. Aktiviere Authentication -> Providers -> Email.";
-  }
-  if (lower.includes("rate limit") || lower.includes("too many")) {
-    return "Zu viele Login-Versuche. Kurz warten und dann erneut versuchen.";
-  }
-  return `Auth Fehler: ${message}`;
 }
 
 function slugify(value) {
@@ -946,14 +476,6 @@ function applySettings() {
   document.documentElement.dataset.compact = String(state.compactLayout);
   document.documentElement.dataset.focus = String(state.focusMode);
   els.themeButton.querySelector("span").textContent = state.theme === "dark" ? "☾" : "◐";
-  els.emailInput.value = state.accountEmail;
-  els.supabaseUrlInput.value = state.supabaseUrl;
-  els.supabaseAnonKeyInput.value = state.supabaseAnonKey;
-  els.supabaseUrlInput.disabled = cloudConfigLocked;
-  els.supabaseAnonKeyInput.disabled = cloudConfigLocked;
-  els.connectCloudButton.disabled = cloudConfigLocked;
-  els.redirectUrlInput.value = getRedirectUrl();
-  els.syncToggle.checked = state.syncEnabled;
   els.colorSchemeInput.value = state.colorScheme;
   els.styleModeInput.value = state.styleMode;
   els.fontSizeInput.value = state.fontSize;
@@ -964,9 +486,7 @@ function applySettings() {
   els.recognitionLevelInput.value = state.recognitionLevel;
   els.defaultCategoryInput.value = state.defaultCategory;
   els.remindersToggle.checked = state.remindersEnabled;
-  els.dailySummaryToggle.checked = state.dailySummary;
   els.focusModeToggle.checked = state.focusMode;
-  els.privacyModeInput.value = state.privacyMode;
 
   if (state.recognition) {
     state.recognition.lang = state.speechLang;
@@ -974,16 +494,6 @@ function applySettings() {
     state.recognition.continuous = state.micQuality !== "Datensparend";
   }
 
-  const syncText = state.syncBusy
-    ? "Sync läuft"
-    : state.syncEnabled && state.cloudUser
-      ? "Sync aktiv"
-      : state.cloudReady
-        ? "Cloud bereit"
-        : state.privacyMode === "Cloud optional"
-          ? "Gastmodus"
-          : "Lokal";
-  els.syncStatus.lastChild.textContent = ` ${syncText}`;
   const localStorageStatus = state.storageReady
     ? state.storagePersisted
       ? "IndexedDB gesichert."
@@ -991,18 +501,14 @@ function applySettings() {
     : state.storageBackend === "localstorage"
       ? "Browser-Speicher aktiv."
       : "Lokaler Speicher wird vorbereitet.";
-  document.querySelector("#storageStatus").textContent = state.syncEnabled
-    ? `${localStorageStatus} Sync zwischen Geräten aktiv.`
-    : state.privacyMode === "Cloud optional"
-      ? `${localStorageStatus} Cloud optional.`
-      : `${localStorageStatus} Lokal zuerst.`;
+  document.querySelector("#storageStatus").textContent = `${localStorageStatus} Lokal gespeichert.`;
   if (els.localStorageNote) {
     els.localStorageNote.textContent = state.storageWarning
       ? state.storageWarning
       : state.storageReady
         ? state.storagePersisted
-          ? "Deine Daten liegen lokal in IndexedDB und sind als persistenter Speicher angefragt. Cloud Sync bleibt optional."
-          : "Deine Daten liegen lokal in IndexedDB. Für zusätzlichen Schutz empfiehlt sich ein Export oder Cloud Sync."
+          ? "Deine Daten liegen lokal in IndexedDB und sind als persistenter Speicher angefragt."
+          : "Deine Daten liegen lokal in IndexedDB. Für zusätzlichen Schutz empfiehlt sich ein Export."
         : "Fallback auf Browser-Speicher aktiv. Bitte sichere wichtige Daten zusätzlich per Export.";
   }
   if (els.backupStatusText) {
@@ -1010,12 +516,6 @@ function applySettings() {
     if (state.lastBackupAt) parts.push(`Letztes Backup ${formatDateTime(state.lastBackupAt, false)}`);
     if (state.lastImportedAt) parts.push(`Letzter Import ${formatDateTime(state.lastImportedAt, false)}`);
     els.backupStatusText.textContent = parts.length ? `${parts.join(" · ")}.` : "Noch kein Backup erstellt.";
-  }
-  updateInstallUi();
-  els.cloudStatusText.textContent = getCloudStatusText();
-  els.authDebugText.textContent = state.authStatusMessage;
-  if (cloudConfigLocked && !state.cloudUser) {
-    els.authDebugText.textContent = "Supabase ist über Deployment-Variablen vorkonfiguriert.";
   }
   renderCustomCategories();
 
@@ -1089,7 +589,6 @@ function deleteCustomCategory(kind) {
   saveSettings();
   renderAll();
   showToast("Bereich entfernt");
-  if (state.syncEnabled && state.cloudUser) void syncCloud("category-delete");
 }
 
 function renderCustomCategories() {
@@ -1181,43 +680,7 @@ function renderAgendaMetrics() {
     card.innerHTML = `<span>${escapeHtml(label)}</span><strong>${value}</strong>`;
     return card;
   });
-  if (state.dailySummary) cards.push(buildDailySummaryCard(open, today));
   els.agendaMetrics.replaceChildren(...cards);
-}
-
-function buildDailySummaryCard(openItems, today) {
-  const card = document.createElement("article");
-  card.className = "summary-card";
-  const todayItems = openItems
-    .filter((item) => sameDay(new Date(item.dueStart || item.agendaDate || item.createdAt), today))
-    .sort((a, b) => new Date(a.dueStart || a.agendaDate || a.createdAt) - new Date(b.dueStart || b.agendaDate || b.createdAt));
-  const overdue = openItems.filter((item) => {
-    if (!item.dueStart) return false;
-    const due = new Date(item.dueStart);
-    return due < new Date() && !sameDay(due, today);
-  });
-  const nextItem = openItems
-    .filter((item) => item.dueStart && new Date(item.dueStart) >= new Date())
-    .sort((a, b) => new Date(a.dueStart) - new Date(b.dueStart))[0];
-  const todayTasks = todayItems.filter((item) => normalizeKind(item.kind) !== "event").length;
-  const todayEvents = todayItems.filter((item) => normalizeKind(item.kind) === "event").length;
-  card.innerHTML = `
-    <p class="eyebrow">Tageszusammenfassung</p>
-    <h3>${todayItems.length ? `Heute warten ${todayItems.length} Eintraege` : "Heute ist es ruhig"}</h3>
-    <p class="settings-note">
-      ${
-        nextItem
-          ? `Naechster Fokus: ${escapeHtml(cleanDisplayText(nextItem.title))} · ${escapeHtml(formatDueBadge(nextItem))}`
-          : "Noch kein naechster Termin geplant."
-      }
-    </p>
-    <div class="summary-pills">
-      <span class="setting-chip">${todayTasks} Aufgaben</span>
-      <span class="setting-chip">${todayEvents} Termine</span>
-      ${overdue.length ? `<span class="setting-chip warn">${overdue.length} ueberfaellig</span>` : `<span class="setting-chip muted">Keine Altlasten</span>`}
-    </div>
-  `;
-  return card;
 }
 
 function setupSpeech() {
@@ -1922,7 +1385,7 @@ function renderReview(draft) {
   });
 
   fragment.querySelector("#saveReviewButton").addEventListener("click", () => {
-    const wasEmptyGuest = !state.loggedIn && activeItems().length === 0;
+    const wasFirstEntry = activeItems().length === 0;
     const dueStart = dateInput.value ? `${dateInput.value}T${timeInput.value || "09:00"}:00` : null;
     const item = {
       ...draft,
@@ -1949,16 +1412,13 @@ function renderReview(draft) {
     els.captureInput.value = "";
     showToast("Gespeichert");
     renderReviewEmpty(
-      wasEmptyGuest ? "Erster Eintrag gespeichert." : "Gespeichert.",
-      wasEmptyGuest
-        ? "Your Voice hat deine erste Eingabe lokal gesichert. Du kannst jetzt einfach weitermachen und Backup oder Sync später ergänzen."
-        : state.loggedIn
-          ? "Der Eintrag liegt jetzt in deiner Inbox und kann synchronisiert werden."
-          : "Der Eintrag liegt jetzt lokal in deiner Inbox. Backup und Sync kannst du später ergänzen.",
+      wasFirstEntry ? "Erster Eintrag gespeichert." : "Gespeichert.",
+      wasFirstEntry
+        ? "Your Voice hat deine erste Eingabe lokal gesichert. Du kannst jetzt direkt weitermachen."
+        : "Der Eintrag liegt jetzt lokal in deiner Inbox.",
     );
     renderAll();
     if (Number(item.reminderOffset || 0) > 0 && state.remindersEnabled) void ensureReminderPermission();
-    if (state.syncEnabled && state.cloudUser) void syncCloud("save");
     setView(item.dueStart && isTodayOrOverdue(item.dueStart) ? "agenda" : "inbox");
   });
 
@@ -2632,7 +2092,6 @@ function commitItems(nextItems, source = "update") {
   state.items = nextItems.map(canonicalizeItem);
   saveItems();
   renderAll();
-  if (state.syncEnabled && state.cloudUser) void syncCloud(source);
 }
 
 function supportsNotifications() {
@@ -2962,7 +2421,6 @@ function moveItemInInbox(id, direction) {
   saveItems();
   renderAll();
   showToast(direction < 0 ? "Nach oben verschoben" : "Nach unten verschoben");
-  if (state.syncEnabled && state.cloudUser) void syncCloud("order");
 }
 
 function moveInboxGroup(sourceKind, targetKind) {
@@ -2978,7 +2436,6 @@ function moveInboxGroup(sourceKind, targetKind) {
   saveSettings();
   renderInbox();
   showToast("Bereich verschoben");
-  if (state.syncEnabled && state.cloudUser) void syncCloud("group-order");
 }
 
 function reorderItemInGroup(sourceId, group, targetId = "") {
@@ -3002,7 +2459,6 @@ function reorderItemInGroup(sourceId, group, targetId = "") {
   saveItems();
   renderAll();
   showToast("Eintrag verschoben");
-  if (state.syncEnabled && state.cloudUser) void syncCloud("item-order");
 }
 
 function loadItems() {
@@ -3062,9 +2518,6 @@ function saveSettings() {
 function snapshotSettings() {
   return {
     theme: state.theme,
-    accountEmail: state.accountEmail,
-    loggedIn: state.loggedIn,
-    syncEnabled: state.syncEnabled,
     colorScheme: state.colorScheme,
     styleMode: state.styleMode,
     fontSize: state.fontSize,
@@ -3076,17 +2529,9 @@ function snapshotSettings() {
     defaultCategory: state.defaultCategory,
     customCategories: state.customCategories,
     remindersEnabled: state.remindersEnabled,
-    dailySummary: state.dailySummary,
     focusMode: state.focusMode,
-    privacyMode: state.privacyMode,
-    supabaseUrl: state.supabaseUrl,
-    supabaseAnonKey: state.supabaseAnonKey,
-    authStatusMessage: state.authStatusMessage,
-    lastSyncAt: state.lastSyncAt,
     lastBackupAt: state.lastBackupAt,
     lastImportedAt: state.lastImportedAt,
-    installDismissedAt: state.installDismissedAt,
-    guestModeHintDismissed: state.guestModeHintDismissed,
     hideDone: state.hideDone,
     inboxGroupOrder: state.inboxGroupOrder,
     hiddenInboxGroups: state.hiddenInboxGroups,
@@ -3141,7 +2586,6 @@ async function importDataFromFile(file) {
     renderAll();
     applySettings();
     showToast(`Importiert: ${nextItems.length} Eintraege`);
-    if (state.syncEnabled && state.cloudUser) void syncCloud("import");
   } catch {
     showToast("Import fehlgeschlagen");
   }
@@ -3299,9 +2743,6 @@ function downloadTextFile(content, filename, type) {
 function applyHydratedSettings(settings) {
   const fields = [
     "theme",
-    "accountEmail",
-    "loggedIn",
-    "syncEnabled",
     "colorScheme",
     "styleMode",
     "fontSize",
@@ -3313,15 +2754,9 @@ function applyHydratedSettings(settings) {
     "defaultCategory",
     "customCategories",
     "remindersEnabled",
-    "dailySummary",
     "focusMode",
-    "privacyMode",
-    "authStatusMessage",
-    "lastSyncAt",
     "lastBackupAt",
     "lastImportedAt",
-    "installDismissedAt",
-    "guestModeHintDismissed",
     "hideDone",
     "inboxGroupOrder",
     "hiddenInboxGroups",
@@ -3329,10 +2764,6 @@ function applyHydratedSettings(settings) {
   fields.forEach((field) => {
     if (settings[field] !== undefined) state[field] = settings[field];
   });
-  if (!cloudConfigLocked) {
-    if (settings.supabaseUrl !== undefined) state.supabaseUrl = settings.supabaseUrl;
-    if (settings.supabaseAnonKey !== undefined) state.supabaseAnonKey = settings.supabaseAnonKey;
-  }
 }
 
 function supportsIndexedDb() {
@@ -3445,104 +2876,8 @@ async function hydratePersistentState() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   navigator.serviceWorker.register("/sw.js").catch(() => {
-    els.syncStatus.textContent = "Offline ohne Cache";
+    document.querySelector("#storageStatus").textContent = "Offline ohne Cache";
   });
-}
-
-function setupInstallExperience() {
-  updateInstallFlags();
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-    state.installReady = true;
-    updateInstallUi();
-  });
-  window.addEventListener("appinstalled", () => {
-    deferredInstallPrompt = null;
-    state.installReady = false;
-    state.standaloneMode = true;
-    state.installDismissedAt = "";
-    saveSettings();
-    updateInstallUi();
-    showToast("Your Voice ist jetzt als App installiert");
-  });
-}
-
-function updateInstallFlags() {
-  state.standaloneMode =
-    window.matchMedia?.("(display-mode: standalone)")?.matches || Boolean(window.navigator.standalone);
-  const ua = window.navigator.userAgent || "";
-  const isIos = /iPad|iPhone|iPod/.test(ua);
-  const isSafariLike = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
-  state.iosInstallHint = isIos && !state.standaloneMode && isSafariLike;
-}
-
-function updateInstallUi() {
-  updateInstallFlags();
-  const shouldSuggest =
-    !state.standaloneMode &&
-    !state.installDismissedAt &&
-    (state.installReady || state.iosInstallHint);
-  if (els.installPromptCard) els.installPromptCard.hidden = !shouldSuggest;
-  const statusText = state.standaloneMode
-    ? "Your Voice ist bereits installiert und startet app-nah."
-    : state.installReady
-      ? "Installiere die App fuer schnellere Erfassung, Offline-Basis und spaetere Push-Erinnerungen."
-      : state.iosInstallHint
-        ? "Auf dem iPhone oder iPad: Teilen → Zum Home-Bildschirm, damit Push spaeter sauber funktioniert."
-        : "Sobald dein Browser es erlaubt, kannst du Your Voice direkt als App installieren.";
-  if (els.installHintText) els.installHintText.textContent = statusText;
-  if (els.installStatusText) els.installStatusText.textContent = statusText;
-  const buttonDisabled = state.standaloneMode || (!state.installReady && !state.iosInstallHint);
-  if (els.installAppButton) els.installAppButton.disabled = buttonDisabled;
-  if (els.installSettingsButton) els.installSettingsButton.disabled = buttonDisabled;
-  const buttonLabel = state.standaloneMode ? "Bereits installiert" : "App installieren";
-  if (els.installAppButton) els.installAppButton.textContent = buttonLabel;
-  if (els.installSettingsButton) els.installSettingsButton.textContent = buttonLabel;
-}
-
-async function promptInstallApp() {
-  updateInstallFlags();
-  if (state.standaloneMode) {
-    showToast("Your Voice ist bereits installiert");
-    return;
-  }
-  if (deferredInstallPrompt) {
-    deferredInstallPrompt.prompt();
-    const choice = await deferredInstallPrompt.userChoice.catch(() => null);
-    deferredInstallPrompt = null;
-    state.installReady = false;
-    if (choice?.outcome === "accepted") {
-      showToast("Installationsdialog geoeffnet");
-    } else {
-      showToast("Installation spaeter moeglich");
-    }
-    updateInstallUi();
-    return;
-  }
-  if (state.iosInstallHint) {
-    showToast("In Safari: Teilen und dann Zum Home-Bildschirm waehlen");
-    return;
-  }
-  showToast("Installation ist in diesem Browser gerade nicht verfuegbar");
-}
-
-function dismissInstallPrompt() {
-  state.installDismissedAt = new Date().toISOString();
-  saveSettings();
-  updateInstallUi();
-  showToast("Installationshinweis ausgeblendet");
-}
-
-function openSettingsPanel(target) {
-  setView("settings");
-  const appPanel = document.querySelector("#appOfflinePanel");
-  const syncPanel = document.querySelector("#cloudSetupPanel");
-  const privacyPanel = document.querySelector("#privacyPanel");
-  if (target === "sync" && syncPanel) syncPanel.open = true;
-  if (target === "privacy" && privacyPanel) privacyPanel.open = true;
-  if (appPanel) appPanel.open = true;
-  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function handleIncomingLaunchContext() {

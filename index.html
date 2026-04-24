@@ -63,10 +63,6 @@
             <p class="eyebrow">Workspace</p>
             <h2 id="viewTitle">Schnell erfassen</h2>
           </div>
-          <div class="status-pill" id="syncStatus">
-            <span aria-hidden="true"></span>
-            Offline bereit
-          </div>
           <button class="icon-button" id="themeButton" type="button" aria-label="Darstellung wechseln">
             <span aria-hidden="true">◐</span>
           </button>
@@ -297,94 +293,11 @@
           <div class="settings-stack">
             <details class="settings-panel">
               <summary>App & Offline</summary>
-              <div class="cloud-setup-card install-settings-card">
-                <p class="eyebrow">PWA</p>
-                <h3>Schneller auf Your Voice zugreifen</h3>
-                <p class="settings-note" id="installStatusText">
-                  Installiere die App fuer einen kuerzeren Weg zur Erfassung und eine bessere Reminder-Basis.
-                </p>
-              </div>
-              <div class="settings-actions">
-                <button class="primary" id="installSettingsButton" type="button">App installieren</button>
-              </div>
               <ul class="simple-list compact-help">
-                <li>Nach der Installation wirkt Your Voice app-naher und bleibt schneller erreichbar.</li>
-                <li>Benachrichtigungen fragen wir erst an, wenn du wirklich einen Reminder setzt.</li>
-                <li>Teilen aus anderen Apps und Kurzbefehle am App-Symbol sind vorbereitet.</li>
+                <li>Deine Daten bleiben lokal in deinem Browser gespeichert.</li>
+                <li>Wichtige Einträge solltest du regelmaessig exportieren.</li>
+                <li>Benachrichtigungen fragen wir erst an, wenn du wirklich eine Erinnerung setzt.</li>
               </ul>
-            </details>
-
-            <details class="settings-panel">
-              <summary>Login</summary>
-              <label class="input-label" for="emailInput">E-Mail</label>
-              <input id="emailInput" type="email" placeholder="name@example.com" />
-              <label class="input-label" for="passwordInput">Passwort</label>
-              <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Mindestens 6 Zeichen" />
-              <div class="settings-actions">
-                <button class="primary" id="loginButton" type="button">Einloggen</button>
-                <button class="ghost" id="registerButton" type="button">Registrieren</button>
-                <button class="ghost" id="magicLinkButton" type="button">Magic Link</button>
-                <button class="ghost" id="resetPasswordButton" type="button">Passwort zurücksetzen</button>
-                <button class="ghost" id="logoutButton" type="button">Logout</button>
-              </div>
-              <p class="settings-note">Passwort-Login bleibt gespeichert. Magic Link ist optional.</p>
-            </details>
-
-            <details class="settings-panel" id="cloudSetupPanel">
-              <summary>Sync</summary>
-              <div class="cloud-setup-card">
-                <p class="eyebrow">Cloud</p>
-                <h3>Geräte-Sync verbinden</h3>
-                <ol class="setup-steps">
-                  <li>Project URL aus Supabase kopieren.</li>
-                  <li>Anon public Key kopieren.</li>
-                  <li>Unten einfügen und Cloud verbinden klicken.</li>
-                </ol>
-              </div>
-
-              <label class="input-label paste-field" for="supabaseUrlInput">
-                Project URL
-                <input id="supabaseUrlInput" type="url" inputmode="url" autocomplete="off" placeholder="https://dein-projekt.supabase.co" />
-              </label>
-              <label class="input-label paste-field" for="supabaseAnonKeyInput">
-                Anon public Key
-                <div class="secret-input">
-                  <input id="supabaseAnonKeyInput" type="password" autocomplete="off" placeholder="eyJhbGciOi..." />
-                  <button class="ghost tiny-button" id="toggleKeyVisibilityButton" type="button">Anzeigen</button>
-                </div>
-              </label>
-              <div class="settings-actions">
-                <button class="primary" id="connectCloudButton" type="button">Cloud verbinden</button>
-                <button class="ghost" id="manualSyncButton" type="button">Jetzt synchronisieren</button>
-              </div>
-              <label class="input-label paste-field" for="redirectUrlInput">
-                Erlaubte Redirect URL für Supabase
-                <div class="secret-input">
-                  <input id="redirectUrlInput" type="text" readonly />
-                  <button class="ghost tiny-button" id="copyRedirectButton" type="button">Kopieren</button>
-                </div>
-              </label>
-              <div class="toggle-row">
-                <span>Sync zwischen Geräten</span>
-                <input id="syncToggle" type="checkbox" />
-              </div>
-              <p class="settings-note" id="cloudStatusText">Cloud noch nicht verbunden.</p>
-              <p class="settings-note" id="authDebugText">Noch kein Login-Versuch.</p>
-              <details class="mini-help">
-                <summary>Keine E-Mail erhalten?</summary>
-                <ul class="simple-list compact-help">
-                  <li>Spam-Ordner prüfen.</li>
-                  <li>In Supabase Authentication → URL Configuration die Redirect URL erlauben.</li>
-                  <li>Bei Supabase Auth Logs nach E-Mail-Fehlern schauen.</li>
-                  <li>Ohne eigenes SMTP sendet Supabase nur eingeschränkt.</li>
-                </ul>
-              </details>
-              <div class="settings-actions">
-                <button class="ghost" id="exportButton" type="button">Backup exportieren</button>
-                <button class="ghost" id="importButton" type="button">Backup importieren</button>
-                <button class="ghost" id="calendarExportButton" type="button">Kalender exportieren (.ics)</button>
-              </div>
-              <input id="importFileInput" type="file" accept="application/json,.json" hidden />
             </details>
 
             <details class="settings-panel">
@@ -459,10 +372,6 @@
                 <input id="remindersToggle" type="checkbox" checked />
               </div>
               <div class="toggle-row">
-                <span>Tageszusammenfassung</span>
-                <input id="dailySummaryToggle" type="checkbox" />
-              </div>
-              <div class="toggle-row">
                 <span>Fokus-Modus</span>
                 <input id="focusModeToggle" type="checkbox" />
               </div>
@@ -470,15 +379,13 @@
 
             <details class="settings-panel">
               <summary>Datenschutz</summary>
-              <div class="toggle-row">
-                <span>Cloud / Lokal</span>
-                <select id="privacyModeInput">
-                  <option>Lokal</option>
-                  <option>Cloud optional</option>
-                </select>
+              <div class="settings-actions">
+                <button class="ghost" id="backupButton" type="button">Backup exportieren</button>
+                <button class="ghost" id="importButton" type="button">Backup importieren</button>
+                <button class="ghost" id="calendarExportButton" type="button">Kalender exportieren (.ics)</button>
               </div>
-              <button class="ghost" id="backupButton" type="button">Backup exportieren</button>
-              <p class="settings-note" id="localStorageNote">IndexedDB sichert deine Daten lokal im Browser. Cloud Sync bleibt optional.</p>
+              <input id="importFileInput" type="file" accept="application/json,.json" hidden />
+              <p class="settings-note" id="localStorageNote">IndexedDB sichert deine Daten lokal im Browser.</p>
               <p class="settings-note" id="backupStatusText">Noch kein Backup erstellt.</p>
               <button class="danger" id="deleteAllButton" type="button">Lokale Daten löschen</button>
             </details>
@@ -588,7 +495,6 @@
       </div>
     </template>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./app.js" type="module"></script>
   </body>
 </html>
