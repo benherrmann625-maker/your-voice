@@ -49,6 +49,12 @@ const state = {
   storagePersisted: false,
   storageBackend: typeof indexedDB !== "undefined" ? "indexeddb" : "localstorage",
   storageWarning: "",
+  authUi: {
+    loading: true,
+    enabled: false,
+    authenticated: false,
+    user: null,
+  },
 };
 
 const els = {
@@ -114,6 +120,13 @@ const els = {
   backupButton: document.querySelector("#backupButton"),
   backupStatusText: document.querySelector("#backupStatusText"),
   localStorageNote: document.querySelector("#localStorageNote"),
+  accountStatusText: document.querySelector("#accountStatusText"),
+  accountUserText: document.querySelector("#accountUserText"),
+  loginLink: document.querySelector("#loginLink"),
+  signupLink: document.querySelector("#signupLink"),
+  magicLink: document.querySelector("#magicLink"),
+  googleLoginLink: document.querySelector("#googleLoginLink"),
+  logoutLink: document.querySelector("#logoutLink"),
   contactNameInput: document.querySelector("#contactNameInput"),
   contactEmailInput: document.querySelector("#contactEmailInput"),
   contactMessageInput: document.querySelector("#contactMessageInput"),
@@ -185,6 +198,13 @@ async function init() {
   registerServiceWorker();
   setupSpeech();
   bindEvents();
+  void refreshAuthUi();
+  window.addEventListener("focus", () => {
+    void refreshAuthUi();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void refreshAuthUi();
+  });
   renderAll();
 }
 
@@ -516,6 +536,7 @@ function applySettings() {
     els.backupStatusText.textContent = parts.length ? `${parts.join(" · ")}.` : "Noch kein Backup erstellt.";
   }
   renderCustomCategories();
+  renderAuthUi();
 
   if (!state.autoDetect) {
     els.micHint.textContent = "Automatische Erkennung ist aus. Einträge werden als Notiz gespeichert.";
@@ -526,6 +547,88 @@ function applySettings() {
   } else if (!state.recognizing) {
     els.micHint.textContent = "Tippe und sprich frei. Du kannst auch direkt schreiben.";
   }
+}
+
+async function refreshAuthUi() {
+  try {
+    const response = await fetch("/api/auth/session", {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error("auth_status_failed");
+    const payload = await response.json();
+    state.authUi = {
+      loading: false,
+      enabled: Boolean(payload?.authEnabled),
+      authenticated: Boolean(payload?.authenticated),
+      user: payload?.user || null,
+    };
+  } catch {
+    state.authUi = {
+      loading: false,
+      enabled: false,
+      authenticated: false,
+      user: null,
+    };
+  }
+  renderAuthUi();
+}
+
+function renderAuthUi() {
+  if (!els.accountStatusText || !els.accountUserText || !els.loginLink || !els.signupLink || !els.logoutLink) return;
+
+  const { loading, enabled, authenticated, user } = state.authUi;
+  els.loginLink.hidden = false;
+  els.signupLink.hidden = false;
+  if (els.magicLink) els.magicLink.hidden = false;
+  if (els.googleLoginLink) els.googleLoginLink.hidden = false;
+  els.logoutLink.hidden = false;
+
+  if (loading) {
+    els.accountStatusText.textContent = "Kontostatus wird geladen.";
+    els.accountUserText.textContent = "Bitte kurz warten.";
+    setAuthLinksEnabled(false);
+    els.logoutLink.hidden = true;
+    return;
+  }
+
+  if (!enabled) {
+    els.accountStatusText.textContent = "Login ist vorbereitet, aber noch nicht aktiviert.";
+    els.accountUserText.textContent = "Sobald Auth0 in Vercel konfiguriert ist, kannst du dich hier einloggen.";
+    setAuthLinksEnabled(false);
+    els.logoutLink.hidden = true;
+    return;
+  }
+
+  if (authenticated && user) {
+    els.accountStatusText.textContent = "Du bist eingeloggt.";
+    els.accountUserText.textContent = user.email || user.name || "Konto verbunden";
+    els.loginLink.hidden = true;
+    els.signupLink.hidden = true;
+    if (els.magicLink) els.magicLink.hidden = true;
+    if (els.googleLoginLink) els.googleLoginLink.hidden = true;
+    setAuthLinksEnabled(true);
+    return;
+  }
+
+  els.accountStatusText.textContent = "Mit Konto kannst du dich sicher anmelden.";
+  els.accountUserText.textContent = "Login, Registrierung, Magic Link und später geschützte Bereiche laufen über Auth0.";
+  setAuthLinksEnabled(true);
+  els.logoutLink.hidden = true;
+}
+
+function setAuthLinksEnabled(enabled) {
+  [els.loginLink, els.signupLink, els.magicLink, els.googleLoginLink, els.logoutLink].forEach((link) => {
+    if (!link) return;
+    link.classList.toggle("disabled", !enabled);
+    link.setAttribute("aria-disabled", String(!enabled));
+    if (!enabled) link.setAttribute("tabindex", "-1");
+    else link.removeAttribute("tabindex");
+  });
 }
 
 function toggleTheme() {

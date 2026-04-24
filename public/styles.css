@@ -833,6 +833,19 @@ select:focus {
   margin-top: 12px;
 }
 
+.settings-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  text-decoration: none;
+}
+
+.settings-link-button.disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
 .install-settings-card h3 {
   margin: 4px 0;
   font-size: 1rem;

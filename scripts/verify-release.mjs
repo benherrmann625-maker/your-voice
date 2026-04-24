@@ -74,6 +74,7 @@ check("custom category patterns", app.includes("generateCustomCategoryPatterns")
 check("single source helpers", app.includes("activeItems()") && app.includes("doneItems()") && app.includes("deletedItems()") && app.includes("canonicalizeItem"));
 check("bracket cleanup", app.includes("cleanDisplayText") && app.includes("replace(/\\[([^\\]]+)\\]/g"));
 check("contact settings", html.includes("sendContactButton") && app.includes("sendContactMessage"));
+check("account login settings", html.includes("accountStatusText") && html.includes('id="loginLink"') && html.includes('id="magicLink"') && html.includes('id="googleLoginLink"') && app.includes("refreshAuthUi") && app.includes("renderAuthUi"));
 check("indexeddb storage", app.includes("INDEXED_DB_NAME") && app.includes("hydratePersistentState") && app.includes("openIndexedDatabase"));
 check("backup import", html.includes("importButton") && html.includes("importFileInput") && app.includes("importDataFromFile"));
 check("storage transparency", html.includes("localStorageNote") && app.includes("storagePersisted") && app.includes("snapshotSettings"));

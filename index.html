@@ -291,6 +291,19 @@
 
         <section class="view" id="settingsView" aria-labelledby="viewTitle">
           <div class="settings-stack">
+            <details class="settings-panel" open>
+              <summary>Konto</summary>
+              <p class="settings-note" id="accountStatusText">Kontostatus wird geladen.</p>
+              <p class="settings-note" id="accountUserText">Noch nicht verbunden.</p>
+              <div class="settings-actions">
+                <a class="primary settings-link-button" id="loginLink" href="/auth/login?returnTo=/">Einloggen</a>
+                <a class="ghost settings-link-button" id="signupLink" href="/auth/login?screen_hint=signup&amp;returnTo=/">Registrieren</a>
+                <a class="ghost settings-link-button" id="magicLink" href="/auth/login?connection=email&amp;returnTo=/">Magic Link</a>
+                <a class="ghost settings-link-button" id="googleLoginLink" href="/auth/login?connection=google-oauth2&amp;returnTo=/">Google</a>
+                <a class="ghost settings-link-button" id="logoutLink" href="/auth/logout">Ausloggen</a>
+              </div>
+            </details>
+
             <details class="settings-panel">
               <summary>App & Offline</summary>
               <ul class="simple-list compact-help">
