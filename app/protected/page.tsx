@@ -1,7 +1,19 @@
 import { redirect } from "next/navigation";
-import { auth0 } from "../../lib/auth0";
+import { auth0, authEnabled } from "../../lib/auth0";
 
 export default async function ProtectedPage() {
+  if (!authEnabled || !auth0) {
+    return (
+      <main style={{ maxWidth: 880, margin: "0 auto", padding: "48px 24px 80px" }}>
+        <p style={{ textTransform: "uppercase", letterSpacing: 1.2, fontSize: 12, opacity: 0.6 }}>Protected</p>
+        <h1>Auth ist nicht aktiv</h1>
+        <p style={{ lineHeight: 1.7, opacity: 0.8 }}>
+          Diese Beispielroute wird erst nutzbar, wenn Auth0 in Vercel vollständig konfiguriert ist.
+        </p>
+      </main>
+    );
+  }
+
   const session = await auth0.getSession();
 
   if (!session?.user) {

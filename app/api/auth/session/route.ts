@@ -1,12 +1,28 @@
 import { NextResponse } from "next/server";
-import { auth0 } from "../../../../lib/auth0";
+import { auth0, authEnabled } from "../../../../lib/auth0";
 
 export async function GET() {
+  if (!authEnabled || !auth0) {
+    return NextResponse.json(
+      {
+        authenticated: false,
+        user: null,
+        authEnabled: false,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
+    );
+  }
+
   const session = await auth0.getSession();
 
   return NextResponse.json(
     {
       authenticated: Boolean(session?.user),
+      authEnabled: true,
       user: session?.user
         ? {
             sub: session.user.sub,

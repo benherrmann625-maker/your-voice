@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth0 } from "./lib/auth0";
+import { auth0, authEnabled } from "./lib/auth0";
 
 export async function middleware(request: NextRequest) {
-  const response = await auth0.middleware(request);
+  const response = authEnabled && auth0 ? await auth0.middleware(request) : NextResponse.next();
 
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");

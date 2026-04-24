@@ -1,9 +1,9 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { auth0 } from "../../lib/auth0";
+import { auth0, authEnabled } from "../../lib/auth0";
 
 export default async function AuthLandingPage() {
-  const session = await auth0.getSession();
+  const session = authEnabled && auth0 ? await auth0.getSession() : null;
   const user = session?.user;
 
   return (
@@ -12,18 +12,27 @@ export default async function AuthLandingPage() {
       <h1 style={{ marginTop: 8 }}>Neue Login-Schicht für Your Voice</h1>
       <p style={{ maxWidth: 680, lineHeight: 1.6, opacity: 0.82 }}>
         Diese Seite ist die produktionsnahe Referenz für die neue Managed-Variante mit Auth0, serverseitigen
-        Sessions und gehostetem Login. Die bestehende Legacy-Supabase-Auth bleibt bis zum dokumentierten Cutover
-        noch unangetastet im Frontend, damit wir sicher migrieren können.
+        Sessions und gehostetem Login.
       </p>
+
+      {!authEnabled ? (
+        <section style={{ ...cardStyle, marginTop: 20 }}>
+          <h2 style={headingStyle}>Auth0 ist aktuell nicht aktiv</h2>
+          <p style={bodyStyle}>
+            Für die laufende Web-App ist Auth momentan bewusst abgeschaltet. Diese Referenzseite wird erst aktiv,
+            sobald die nötigen Auth0-Umgebungsvariablen in Vercel gesetzt sind.
+          </p>
+        </section>
+      ) : null}
 
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginTop: 28 }}>
         <section style={cardStyle}>
           <h2 style={headingStyle}>Status</h2>
           <p style={bodyStyle}>{user ? `Eingeloggt als ${user.email ?? user.name ?? user.sub}` : "Noch keine aktive Auth0-Session."}</p>
           <div style={buttonRowStyle}>
-            <a href="/auth/login" style={primaryButtonStyle}>Login</a>
-            <a href="/auth/login?screen_hint=signup" style={secondaryButtonStyle}>Registrieren</a>
-            <a href="/auth/logout" style={secondaryButtonStyle}>Logout</a>
+            <a href="/auth/login" style={{ ...primaryButtonStyle, opacity: authEnabled ? 1 : 0.5, pointerEvents: authEnabled ? "auto" : "none" }}>Login</a>
+            <a href="/auth/login?screen_hint=signup" style={{ ...secondaryButtonStyle, opacity: authEnabled ? 1 : 0.5, pointerEvents: authEnabled ? "auto" : "none" }}>Registrieren</a>
+            <a href="/auth/logout" style={{ ...secondaryButtonStyle, opacity: authEnabled ? 1 : 0.5, pointerEvents: authEnabled ? "auto" : "none" }}>Logout</a>
           </div>
         </section>
 
@@ -34,8 +43,8 @@ export default async function AuthLandingPage() {
             Connections und Guardian/WebAuthn aktiviert.
           </p>
           <div style={buttonRowStyle}>
-            <a href="/auth/login?connection=email" style={secondaryButtonStyle}>Magic Link</a>
-            <a href="/auth/login?connection=google-oauth2" style={secondaryButtonStyle}>Google</a>
+            <a href="/auth/login?connection=email" style={{ ...secondaryButtonStyle, opacity: authEnabled ? 1 : 0.5, pointerEvents: authEnabled ? "auto" : "none" }}>Magic Link</a>
+            <a href="/auth/login?connection=google-oauth2" style={{ ...secondaryButtonStyle, opacity: authEnabled ? 1 : 0.5, pointerEvents: authEnabled ? "auto" : "none" }}>Google</a>
             <Link href="/protected" style={secondaryButtonStyle}>Geschützte Route</Link>
           </div>
         </section>
