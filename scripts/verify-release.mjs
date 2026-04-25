@@ -91,6 +91,16 @@ check("guest overlay removed", !html.includes("guestModeCard") && !app.includes(
 check("example actions removed", !html.includes("loadExampleButton") && !html.includes("Beispiel laden") && !app.includes("loadExampleNote"));
 check("interactive empty states", app.includes("buildContextualEmptyState") && app.includes("runEmptyStateAction") && css.includes(".empty-actions"));
 check("calendar ics export", html.includes("calendarExportButton") && app.includes("BEGIN:VCALENDAR") && app.includes("buildEventIcs") && app.includes("buildTodoIcs"));
+check(
+  "smartphone calendar handoff",
+  html.includes("calendarTargetInput") &&
+    html.includes("calendarAutoHandoffToggle") &&
+    app.includes("triggerCalendarHandoff") &&
+    app.includes("buildGoogleCalendarCreateUrl") &&
+    app.includes("buildSingleItemIcs") &&
+    app.includes("calendarAutoHandoff") &&
+    css.includes(".calendar-handoff-overlay"),
+);
 check("daily summary removed", !html.includes("dailySummaryToggle") && !app.includes("buildDailySummaryCard"));
 check(
   "install prompt removed",

@@ -391,6 +391,24 @@
             </details>
 
             <details class="settings-panel">
+              <summary>Kalender</summary>
+              <label class="input-label" for="calendarTargetInput">Standardziel</label>
+              <select id="calendarTargetInput">
+                <option value="prompt">Immer fragen</option>
+                <option value="google">Google Kalender</option>
+                <option value="ics">Smartphone-Kalender (.ics)</option>
+              </select>
+              <div class="toggle-row">
+                <span>Nach dem Speichern direkt anbieten</span>
+                <input id="calendarAutoHandoffToggle" type="checkbox" />
+              </div>
+              <p class="settings-note" id="calendarIntegrationNote">
+                Google öffnet einen vorgefüllten Kalendereintrag. Für iPhone, Apple Kalender und andere Kalender-Apps
+                nutzt Your Voice eine .ics-Datei zum Teilen oder Importieren.
+              </p>
+            </details>
+
+            <details class="settings-panel">
               <summary>Datenschutz</summary>
               <div class="settings-actions">
                 <button class="ghost" id="backupButton" type="button">Backup exportieren</button>

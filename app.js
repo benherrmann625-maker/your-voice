@@ -49,6 +49,8 @@ const state = {
   storagePersisted: false,
   storageBackend: typeof indexedDB !== "undefined" ? "indexeddb" : "localstorage",
   storageWarning: "",
+  calendarTarget: normalizeCalendarTarget(savedSettings.calendarTarget),
+  calendarAutoHandoff: Boolean(savedSettings.calendarAutoHandoff),
   authUi: {
     loading: true,
     enabled: false,
@@ -117,6 +119,9 @@ const els = {
   customCategoryList: document.querySelector("#customCategoryList"),
   remindersToggle: document.querySelector("#remindersToggle"),
   focusModeToggle: document.querySelector("#focusModeToggle"),
+  calendarTargetInput: document.querySelector("#calendarTargetInput"),
+  calendarAutoHandoffToggle: document.querySelector("#calendarAutoHandoffToggle"),
+  calendarIntegrationNote: document.querySelector("#calendarIntegrationNote"),
   backupButton: document.querySelector("#backupButton"),
   backupStatusText: document.querySelector("#backupStatusText"),
   localStorageNote: document.querySelector("#localStorageNote"),
@@ -344,6 +349,8 @@ function bindSettingsEvents() {
   els.addCustomCategoryButton?.addEventListener("click", addCustomCategory);
   els.remindersToggle.addEventListener("change", () => updateSetting("remindersEnabled", els.remindersToggle.checked));
   els.focusModeToggle.addEventListener("change", () => updateSetting("focusMode", els.focusModeToggle.checked));
+  els.calendarTargetInput?.addEventListener("change", () => updateSetting("calendarTarget", els.calendarTargetInput.value));
+  els.calendarAutoHandoffToggle?.addEventListener("change", () => updateSetting("calendarAutoHandoff", els.calendarAutoHandoffToggle.checked));
   els.backupButton?.addEventListener("click", () => {
     exportData();
   });
@@ -413,6 +420,7 @@ function createManualAgendaEvent() {
   renderAll();
   showToast(recurrenceRule ? "Wiederholung gespeichert" : "Termin gespeichert");
   if (Number(reminderOffset) > 0 && state.remindersEnabled) void ensureReminderPermission();
+  void handleCalendarHandoffAfterSave(item);
 }
 
 function buildManualRecurrenceRule(date) {
@@ -466,10 +474,15 @@ function sendContactMessage() {
 }
 
 function updateSetting(key, value) {
+  if (key === "calendarTarget") value = normalizeCalendarTarget(value);
   state[key] = value;
   saveSettings();
   applySettings();
   renderAll();
+}
+
+function normalizeCalendarTarget(value) {
+  return ["prompt", "google", "ics"].includes(value) ? value : "prompt";
 }
 
 function slugify(value) {
@@ -505,6 +518,15 @@ function applySettings() {
   els.defaultCategoryInput.value = state.defaultCategory;
   els.remindersToggle.checked = state.remindersEnabled;
   els.focusModeToggle.checked = state.focusMode;
+  if (els.calendarTargetInput) els.calendarTargetInput.value = state.calendarTarget;
+  if (els.calendarAutoHandoffToggle) els.calendarAutoHandoffToggle.checked = state.calendarAutoHandoff;
+  if (els.calendarIntegrationNote) {
+    els.calendarIntegrationNote.textContent = state.calendarTarget === "google"
+      ? "Google wird direkt mit einem vorgefüllten Kalendereintrag geöffnet. Für Apple oder andere Kalender bleibt .ics als Fallback verfügbar."
+      : state.calendarTarget === "ics"
+        ? "Your Voice erstellt eine .ics-Datei, die du auf iPhone, in Apple Kalender oder in andere Kalender-Apps übernehmen kannst."
+        : "Google öffnet direkt einen vorgefüllten Kalendereintrag. Für iPhone, Apple Kalender und andere Kalender-Apps nutzt Your Voice eine .ics-Datei zum Teilen oder Importieren.";
+  }
 
   if (state.recognition) {
     state.recognition.lang = state.speechLang;
@@ -1521,6 +1543,7 @@ function renderReview(draft) {
     renderAll();
     if (Number(item.reminderOffset || 0) > 0 && state.remindersEnabled) void ensureReminderPermission();
     setView(item.dueStart && isTodayOrOverdue(item.dueStart) ? "agenda" : "inbox");
+    void handleCalendarHandoffAfterSave(item);
   });
 
   fragment.querySelector("#resetReviewButton").addEventListener("click", () => {
@@ -1980,11 +2003,15 @@ function renderAgendaEntry(item) {
         </div>
       </div>
       <div class="chips">
+        ${canHandoffToCalendar(item) ? `<button class="ghost tiny-button" type="button" data-action="calendar">Kalender</button>` : ""}
         <button class="ghost tiny-button" type="button" data-action="quick-edit">Ändern</button>
       </div>
     </div>
   `;
   card.append(renderQuickEditPanel(item));
+  card.querySelector('[data-action="calendar"]')?.addEventListener("click", () => {
+    void triggerCalendarHandoff(item.id, "button");
+  });
   bindQuickEditTriggers(card, item);
   return card;
 }
@@ -2046,6 +2073,7 @@ function renderItem(item) {
                <button class="ghost icon-action" type="button" data-action="up" aria-label="Nach oben">↑</button>
                <button class="ghost icon-action" type="button" data-action="down" aria-label="Nach unten">↓</button>
                <button class="ghost" type="button" data-action="toggle">${item.status === "done" ? "Wieder öffnen" : "Erledigt"}</button>
+               ${canHandoffToCalendar(item) ? `<button class="ghost" type="button" data-action="calendar">Kalender</button>` : ""}
                <button class="ghost" type="button" data-action="quick-edit">Schnell ändern</button>
                <button class="danger" type="button" data-action="delete">Löschen</button>`
         }
@@ -2083,6 +2111,9 @@ function renderItem(item) {
 
   card.querySelector('[data-action="toggle"]')?.addEventListener("click", () => {
     updateItem(item.id, { status: item.status === "done" ? "open" : "done" });
+  });
+  card.querySelector('[data-action="calendar"]')?.addEventListener("click", () => {
+    void triggerCalendarHandoff(item.id, "button");
   });
 
   card.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
@@ -2170,6 +2201,8 @@ function saveQuickEdit(card, item) {
   state.quickEditItemId = "";
   if (dueStart && !item.reminderDisabled && state.remindersEnabled) void ensureReminderPermission();
   showToast("Eintrag aktualisiert");
+  const refreshed = state.items.find((entry) => entry.id === item.id);
+  if (refreshed) void handleCalendarHandoffAfterSave(refreshed);
 }
 
 function updateItem(id, patch) {
@@ -2595,6 +2628,13 @@ function canonicalizeItem(item) {
     sourceTranscript: item.sourceTranscript || item.rawText || "",
     normalizedShortNote,
     title: cleanDisplayText(item.title || normalizedShortNote),
+    calendarLinkState: item.calendarLinkState && typeof item.calendarLinkState === "object"
+      ? {
+          target: item.calendarLinkState.target || "",
+          method: item.calendarLinkState.method || "",
+          lastSentAt: item.calendarLinkState.lastSentAt || "",
+        }
+      : { target: "", method: "", lastSentAt: "" },
     status: lifecycleStatus === "deleted" ? "deleted" : lifecycleStatus === "done" ? "done" : "open",
     lifecycleStatus,
     parseConfidence: Number(item.parseConfidence || item.confidence || 0.5),
@@ -2631,6 +2671,8 @@ function snapshotSettings() {
     customCategories: state.customCategories,
     remindersEnabled: state.remindersEnabled,
     focusMode: state.focusMode,
+    calendarTarget: state.calendarTarget,
+    calendarAutoHandoff: state.calendarAutoHandoff,
     lastBackupAt: state.lastBackupAt,
     lastImportedAt: state.lastImportedAt,
     hideDone: state.hideDone,
@@ -2713,6 +2755,193 @@ function exportCalendarIcs() {
     "text/calendar;charset=utf-8",
   );
   showToast(`${exportItems.length} Kalendereintraege exportiert`);
+}
+
+function canHandoffToCalendar(item) {
+  return Boolean(item && getLifecycleStatus(item) !== "deleted" && (item.dueStart || item.recurrenceRule));
+}
+
+async function handleCalendarHandoffAfterSave(item) {
+  if (!state.calendarAutoHandoff || !canHandoffToCalendar(item)) return;
+  await triggerCalendarHandoff(item.id, "autosave");
+}
+
+async function triggerCalendarHandoff(itemId, source = "button") {
+  const item = state.items.find((entry) => entry.id === itemId);
+  if (!item || !canHandoffToCalendar(item)) return;
+  if (state.calendarTarget === "google") {
+    handoffItemToGoogleCalendar(item, source);
+    return;
+  }
+  if (state.calendarTarget === "ics") {
+    await handoffItemToIcs(item, source);
+    return;
+  }
+  await openCalendarHandoffSheet(item, source);
+}
+
+async function openCalendarHandoffSheet(item, source = "button") {
+  closeCalendarHandoffSheet();
+  const overlay = document.createElement("div");
+  overlay.className = "calendar-handoff-overlay";
+  overlay.dataset.calendarOverlay = "true";
+  const isEventLike = isEventLikeCalendarItem(item);
+  const subtitle = isEventLike
+    ? "Google funktioniert am direktesten. Für iPhone, Apple Kalender und andere Kalender-Apps ist .ics der sichere Weg."
+    : "Für Aufgaben und Erinnerungen ist .ics meist der zuverlässigste Smartphone-Fallback. Google kann den Eintrag bei Bedarf als Termin übernehmen.";
+  overlay.innerHTML = `
+    <div class="calendar-handoff-sheet" role="dialog" aria-modal="true" aria-labelledby="calendarHandoffTitle">
+      <div class="calendar-handoff-head">
+        <div>
+          <p class="eyebrow">Kalender</p>
+          <h3 id="calendarHandoffTitle">${escapeHtml(cleanDisplayText(item.title || "Eintrag"))}</h3>
+        </div>
+        <button class="ghost tiny-button" type="button" data-calendar-close>Schließen</button>
+      </div>
+      <p class="settings-note">${escapeHtml(subtitle)}</p>
+      <div class="calendar-handoff-meta">
+        ${item.dueStart ? `<span>${escapeHtml(formatDueBadge(item))}</span>` : ""}
+        ${item.recurrenceRule ? `<span>${escapeHtml(formatRecurrenceLabel(item.recurrenceRule))}</span>` : ""}
+        ${item.placeLabel ? `<span>${escapeHtml(item.placeLabel)}</span>` : ""}
+      </div>
+      <div class="calendar-handoff-actions">
+        <button class="primary" type="button" data-calendar-mode="google">Google Kalender</button>
+        <button class="ghost" type="button" data-calendar-mode="ics">Smartphone-Kalender (.ics)</button>
+      </div>
+      <p class="settings-note">${escapeHtml(buildCalendarHandoffFooter(item))}</p>
+    </div>
+  `;
+  document.body.append(overlay);
+  document.body.classList.add("calendar-handoff-open");
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeCalendarHandoffSheet();
+  });
+  overlay.querySelector("[data-calendar-close]")?.addEventListener("click", closeCalendarHandoffSheet);
+  overlay.querySelector('[data-calendar-mode="google"]')?.addEventListener("click", () => {
+    closeCalendarHandoffSheet();
+    handoffItemToGoogleCalendar(item, source);
+  });
+  overlay.querySelector('[data-calendar-mode="ics"]')?.addEventListener("click", async () => {
+    closeCalendarHandoffSheet();
+    await handoffItemToIcs(item, source);
+  });
+}
+
+function closeCalendarHandoffSheet() {
+  document.querySelector("[data-calendar-overlay='true']")?.remove();
+  document.body.classList.remove("calendar-handoff-open");
+}
+
+function buildCalendarHandoffFooter(item) {
+  const last = item.calendarLinkState?.lastSentAt
+    ? `Zuletzt übergeben ${formatDateTime(item.calendarLinkState.lastSentAt, false)}`
+    : "";
+  if (last && item.calendarLinkState?.target) return `${last} · Ziel ${item.calendarLinkState.target}.`;
+  return "Your Voice bleibt deine Quelle in der App. Der Kalender erhält eine zusätzliche Kopie.";
+}
+
+function handoffItemToGoogleCalendar(item, source = "button") {
+  const url = buildGoogleCalendarCreateUrl(item);
+  window.open(url, "_blank", "noopener,noreferrer");
+  rememberCalendarHandoff(item.id, {
+    target: "google",
+    method: source === "autosave" ? "auto-link" : "link",
+    lastSentAt: new Date().toISOString(),
+  });
+  showToast("Google Kalender geöffnet");
+}
+
+async function handoffItemToIcs(item, source = "button") {
+  const content = buildSingleItemIcs(item);
+  const filename = buildCalendarFilename(item);
+  const shared = await shareCalendarFile(content, filename, item);
+  if (shared === null) return;
+  rememberCalendarHandoff(item.id, {
+    target: "ics",
+    method: shared ? (source === "autosave" ? "auto-share" : "share") : "download",
+    lastSentAt: new Date().toISOString(),
+  });
+  showToast(shared ? "Kalenderdatei geteilt" : "Kalenderdatei geladen");
+}
+
+function rememberCalendarHandoff(id, nextState) {
+  updateItem(id, {
+    calendarLinkState: {
+      target: nextState.target || "",
+      method: nextState.method || "",
+      lastSentAt: nextState.lastSentAt || new Date().toISOString(),
+    },
+  });
+}
+
+function buildSingleItemIcs(item) {
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Your Voice//Organizer//DE",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    ...buildIcsEntries(item),
+    "END:VCALENDAR",
+  ];
+  return `${foldIcsLines(lines).join("\r\n")}\r\n`;
+}
+
+function buildCalendarFilename(item) {
+  const slug = cleanDisplayText(item.title || "eintrag")
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "kalender-eintrag";
+  return `your-voice-${slug}.ics`;
+}
+
+async function shareCalendarFile(content, filename, item) {
+  const file = new File([content], filename, { type: "text/calendar;charset=utf-8" });
+  if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+    try {
+      await navigator.share({
+        title: cleanDisplayText(item.title || "Kalendereintrag"),
+        text: "Kalendereintrag aus Your Voice",
+        files: [file],
+      });
+      return true;
+    } catch (error) {
+      if (error?.name === "AbortError") return null;
+    }
+  }
+  downloadTextFile(content, filename, "text/calendar;charset=utf-8");
+  return false;
+}
+
+function buildGoogleCalendarCreateUrl(item) {
+  const url = new URL("https://calendar.google.com/calendar/render");
+  const start = new Date(item.dueStart || item.agendaDate || item.createdAt);
+  const end = item.allDay ? addDays(startOfDay(start), 1) : new Date(start.getTime() + 60 * 60000);
+  url.searchParams.set("action", "TEMPLATE");
+  url.searchParams.set("text", cleanDisplayText(item.title || "Eintrag"));
+  url.searchParams.set("details", buildGoogleCalendarDetails(item));
+  if (item.placeLabel) url.searchParams.set("location", cleanDisplayText(item.placeLabel));
+  url.searchParams.set("dates", item.allDay
+    ? `${formatIcsDate(start)}/${formatIcsDate(end)}`
+    : `${formatUtcIcsDate(start)}/${formatUtcIcsDate(end)}`);
+  if (item.recurrenceRule) url.searchParams.set("recur", `RRULE:${item.recurrenceRule}`);
+  return url.toString();
+}
+
+function buildGoogleCalendarDetails(item) {
+  const parts = [
+    item.notes ? cleanDisplayText(item.notes) : "",
+    item.kind ? `Your Voice Typ: ${getKindLabel(item.kind)}` : "",
+    item.calendarLinkState?.lastSentAt ? `Zuletzt aus Your Voice übergeben: ${formatDateTime(item.calendarLinkState.lastSentAt, false)}` : "",
+  ].filter(Boolean);
+  return parts.join("\n\n") || "Aus Your Voice erstellt";
+}
+
+function isEventLikeCalendarItem(item) {
+  const kind = normalizeKind(item.kind);
+  return kind === "event" || kind === "birthday";
 }
 
 function buildIcsEntries(item) {
@@ -2856,6 +3085,8 @@ function applyHydratedSettings(settings) {
     "customCategories",
     "remindersEnabled",
     "focusMode",
+    "calendarTarget",
+    "calendarAutoHandoff",
     "lastBackupAt",
     "lastImportedAt",
     "hideDone",
@@ -2865,6 +3096,8 @@ function applyHydratedSettings(settings) {
   fields.forEach((field) => {
     if (settings[field] !== undefined) state[field] = settings[field];
   });
+  state.calendarTarget = normalizeCalendarTarget(state.calendarTarget);
+  state.calendarAutoHandoff = Boolean(state.calendarAutoHandoff);
 }
 
 function supportsIndexedDb() {
