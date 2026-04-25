@@ -182,6 +182,10 @@
               <label class="input-label repeat-custom repeat-pattern" for="repeatTextInput">Wiederholung formulieren
                 <input id="repeatTextInput" type="text" placeholder="alle 3 Tage oder jeden Montag" />
               </label>
+              <div class="toggle-row agenda-calendar-toggle">
+                <span>Direkt in Kalender übernehmen</span>
+                <input id="agendaCalendarHandoffToggle" type="checkbox" />
+              </div>
               <button class="primary create-event-button" id="createAgendaEventButton" type="button">+ Termin erstellen</button>
             </div>
           </details>
@@ -399,7 +403,7 @@
                 <option value="ics">Smartphone-Kalender (.ics)</option>
               </select>
               <div class="toggle-row">
-                <span>Nach dem Speichern direkt anbieten</span>
+                <span>Termine mit Datum/Uhrzeit automatisch in Kalender übernehmen</span>
                 <input id="calendarAutoHandoffToggle" type="checkbox" />
               </div>
               <p class="settings-note" id="calendarIntegrationNote">

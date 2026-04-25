@@ -94,6 +94,7 @@ check("calendar ics export", html.includes("calendarExportButton") && app.includ
 check(
   "smartphone calendar handoff",
   html.includes("calendarTargetInput") &&
+    html.includes("agendaCalendarHandoffToggle") &&
     html.includes("calendarAutoHandoffToggle") &&
     app.includes("triggerCalendarHandoff") &&
     app.includes("buildGoogleCalendarCreateUrl") &&

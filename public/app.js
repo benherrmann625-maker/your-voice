@@ -81,6 +81,7 @@ const els = {
   agendaTimeInput: document.querySelector("#agendaTimeInput"),
   agendaReminderInput: document.querySelector("#agendaReminderInput"),
   agendaRepeatInput: document.querySelector("#agendaRepeatInput"),
+  agendaCalendarHandoffToggle: document.querySelector("#agendaCalendarHandoffToggle"),
   repeatTextInput: document.querySelector("#repeatTextInput"),
   createAgendaEventButton: document.querySelector("#createAgendaEventButton"),
   calendarViewButtons: [...document.querySelectorAll("[data-calendar-view]")],
@@ -263,6 +264,7 @@ function bindEvents() {
   });
   els.agendaDateInput.value = toDateInputValue(state.selectedDate);
   if (els.agendaReminderInput) els.agendaReminderInput.value = state.remindersEnabled ? "15" : "0";
+  if (els.agendaCalendarHandoffToggle) els.agendaCalendarHandoffToggle.checked = state.calendarAutoHandoff;
   els.agendaRepeatInput.addEventListener("change", renderRepeatControls);
   els.createAgendaEventButton.addEventListener("click", createManualAgendaEvent);
   renderRepeatControls();
@@ -420,7 +422,7 @@ function createManualAgendaEvent() {
   renderAll();
   showToast(recurrenceRule ? "Wiederholung gespeichert" : "Termin gespeichert");
   if (Number(reminderOffset) > 0 && state.remindersEnabled) void ensureReminderPermission();
-  void handleCalendarHandoffAfterSave(item);
+  void handleCalendarHandoffAfterSave(item, { force: Boolean(els.agendaCalendarHandoffToggle?.checked) });
 }
 
 function buildManualRecurrenceRule(date) {
@@ -520,12 +522,13 @@ function applySettings() {
   els.focusModeToggle.checked = state.focusMode;
   if (els.calendarTargetInput) els.calendarTargetInput.value = state.calendarTarget;
   if (els.calendarAutoHandoffToggle) els.calendarAutoHandoffToggle.checked = state.calendarAutoHandoff;
+  if (els.agendaCalendarHandoffToggle) els.agendaCalendarHandoffToggle.checked = state.calendarAutoHandoff;
   if (els.calendarIntegrationNote) {
     els.calendarIntegrationNote.textContent = state.calendarTarget === "google"
-      ? "Google wird direkt mit einem vorgefüllten Kalendereintrag geöffnet. Für Apple oder andere Kalender bleibt .ics als Fallback verfügbar."
+      ? "Google wird direkt mit einem vorgefüllten Kalendereintrag geöffnet. Wenn die Automatik aktiv ist, läuft das direkt nach dem Speichern."
       : state.calendarTarget === "ics"
-        ? "Your Voice erstellt eine .ics-Datei, die du auf iPhone, in Apple Kalender oder in andere Kalender-Apps übernehmen kannst."
-        : "Google öffnet direkt einen vorgefüllten Kalendereintrag. Für iPhone, Apple Kalender und andere Kalender-Apps nutzt Your Voice eine .ics-Datei zum Teilen oder Importieren.";
+        ? "Your Voice erstellt eine .ics-Datei, die du auf iPhone, in Apple Kalender oder in andere Kalender-Apps übernehmen kannst. Mit aktivierter Automatik passiert das direkt nach dem Speichern."
+        : "Wenn die Automatik aktiv ist, fragt Your Voice direkt nach dem Speichern, ob der Eintrag über Google oder als .ics in deinen Smartphone-Kalender soll.";
   }
 
   if (state.recognition) {
@@ -2761,8 +2764,8 @@ function canHandoffToCalendar(item) {
   return Boolean(item && getLifecycleStatus(item) !== "deleted" && (item.dueStart || item.recurrenceRule));
 }
 
-async function handleCalendarHandoffAfterSave(item) {
-  if (!state.calendarAutoHandoff || !canHandoffToCalendar(item)) return;
+async function handleCalendarHandoffAfterSave(item, options = {}) {
+  if ((!state.calendarAutoHandoff && !options.force) || !canHandoffToCalendar(item)) return;
   await triggerCalendarHandoff(item.id, "autosave");
 }
 
