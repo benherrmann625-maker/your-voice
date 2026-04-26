@@ -161,34 +161,35 @@
               <label class="input-label" for="agendaTimeInput">Uhrzeit
                 <input id="agendaTimeInput" type="time" />
               </label>
-              <label class="input-label" for="agendaReminderInput">Erinnerung
-                <select id="agendaReminderInput">
-                  <option value="0">Zur Zeit</option>
-                  <option value="15">15 Minuten vorher</option>
-                  <option value="60">1 Stunde vorher</option>
-                  <option value="1440">1 Tag vorher</option>
-                </select>
-              </label>
-              <label class="input-label" for="agendaRepeatInput">Wiederholung
-                <select id="agendaRepeatInput">
-                  <option value="none">Einmalig</option>
-                  <option value="daily">Täglich</option>
-                  <option value="weekly">Wöchentlich</option>
-                  <option value="monthly">Monatlich</option>
-                  <option value="yearly">Jährlich</option>
-                  <option value="custom">Frei formuliert</option>
-                </select>
-              </label>
-              <label class="input-label repeat-custom repeat-pattern" for="repeatTextInput">Wiederholung formulieren
-                <input id="repeatTextInput" type="text" placeholder="alle 3 Tage oder jeden Montag" />
-              </label>
-              <div class="toggle-row agenda-calendar-toggle">
-                <span>Direkt in Kalender übernehmen</span>
-                <input id="agendaCalendarHandoffToggle" type="checkbox" />
-              </div>
               <p class="settings-note agenda-calendar-note" id="agendaCalendarStatusText">
                 Kein automatischer Kalendereintrag aktiv.
               </p>
+              <details class="agenda-advanced-panel">
+                <summary>Mehr Optionen</summary>
+                <div class="agenda-advanced-grid">
+                  <label class="input-label" for="agendaReminderInput">Erinnerung
+                    <select id="agendaReminderInput">
+                      <option value="0">Zur Zeit</option>
+                      <option value="15">15 Minuten vorher</option>
+                      <option value="60">1 Stunde vorher</option>
+                      <option value="1440">1 Tag vorher</option>
+                    </select>
+                  </label>
+                  <label class="input-label" for="agendaRepeatInput">Wiederholung
+                    <select id="agendaRepeatInput">
+                      <option value="none">Einmalig</option>
+                      <option value="daily">Täglich</option>
+                      <option value="weekly">Wöchentlich</option>
+                      <option value="monthly">Monatlich</option>
+                      <option value="yearly">Jährlich</option>
+                      <option value="custom">Frei formuliert</option>
+                    </select>
+                  </label>
+                  <label class="input-label repeat-custom repeat-pattern" for="repeatTextInput">Wiederholung formulieren
+                    <input id="repeatTextInput" type="text" placeholder="alle 3 Tage oder jeden Montag" />
+                  </label>
+                </div>
+              </details>
               <button class="primary create-event-button" id="createAgendaEventButton" type="button">+ Termin erstellen</button>
             </div>
           </details>
@@ -298,7 +299,7 @@
 
         <section class="view" id="settingsView" aria-labelledby="viewTitle">
           <div class="settings-stack">
-            <details class="settings-panel" open>
+            <details class="settings-panel">
               <summary>Konto</summary>
               <p class="settings-note" id="accountStatusText">Kontostatus wird geladen.</p>
               <p class="settings-note" id="accountUserText">Noch nicht verbunden.</p>
@@ -397,7 +398,7 @@
               </div>
             </details>
 
-            <details class="settings-panel" open>
+            <details class="settings-panel">
               <summary>Kalender</summary>
               <label class="input-label" for="calendarTargetInput">Standardziel</label>
               <select id="calendarTargetInput">
@@ -407,7 +408,7 @@
                 <option value="ics">Smartphone-Kalender (.ics)</option>
               </select>
               <div class="toggle-row">
-                <span>Termine mit Datum/Uhrzeit automatisch in Kalender übernehmen</span>
+                <span>Neue Termine automatisch in den Kalender übernehmen</span>
                 <input id="calendarAutoHandoffToggle" type="checkbox" />
               </div>
               <div class="toggle-row">

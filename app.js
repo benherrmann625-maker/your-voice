@@ -94,7 +94,6 @@ const els = {
   agendaTimeInput: document.querySelector("#agendaTimeInput"),
   agendaReminderInput: document.querySelector("#agendaReminderInput"),
   agendaRepeatInput: document.querySelector("#agendaRepeatInput"),
-  agendaCalendarHandoffToggle: document.querySelector("#agendaCalendarHandoffToggle"),
   agendaCalendarStatusText: document.querySelector("#agendaCalendarStatusText"),
   repeatTextInput: document.querySelector("#repeatTextInput"),
   createAgendaEventButton: document.querySelector("#createAgendaEventButton"),
@@ -283,7 +282,6 @@ function bindEvents() {
   });
   els.agendaDateInput.value = toDateInputValue(state.selectedDate);
   if (els.agendaReminderInput) els.agendaReminderInput.value = state.remindersEnabled ? "15" : "0";
-  if (els.agendaCalendarHandoffToggle) els.agendaCalendarHandoffToggle.checked = state.calendarAutoHandoff;
   els.agendaRepeatInput.addEventListener("change", renderRepeatControls);
   els.createAgendaEventButton.addEventListener("click", createManualAgendaEvent);
   renderRepeatControls();
@@ -448,7 +446,7 @@ function createManualAgendaEvent() {
   renderAll();
   showToast(recurrenceRule ? "Wiederholung gespeichert" : "Termin gespeichert");
   if (Number(reminderOffset) > 0 && state.remindersEnabled) void ensureReminderPermission();
-  void handleCalendarHandoffAfterSave(item, { force: Boolean(els.agendaCalendarHandoffToggle?.checked) });
+  void handleCalendarHandoffAfterSave(item);
 }
 
 function buildManualRecurrenceRule(date) {
@@ -554,18 +552,17 @@ function applySettings() {
   if (els.calendarTargetInput) els.calendarTargetInput.value = state.calendarTarget;
   if (els.calendarAutoHandoffToggle) els.calendarAutoHandoffToggle.checked = state.calendarAutoHandoff;
   if (els.calendarOpenAppAfterSaveToggle) els.calendarOpenAppAfterSaveToggle.checked = state.calendarOpenAppAfterSave;
-  if (els.agendaCalendarHandoffToggle) els.agendaCalendarHandoffToggle.checked = state.calendarAutoHandoff;
   if (els.calendarAutoStatusText) {
     els.calendarAutoStatusText.textContent = state.calendarAutoHandoff
-      ? `Automatische Kalenderübernahme ist aktiv: ${formatCalendarTargetLabel(state.calendarTarget)}.`
-      : "Automatische Kalenderübernahme ist aus.";
+      ? `Neue Termine werden automatisch an ${formatCalendarTargetLabel(state.calendarTarget)} übergeben.`
+      : "Neue Termine bleiben zunächst nur in Your Voice und können später manuell übernommen werden.";
   }
   if (els.agendaCalendarStatusText) {
     els.agendaCalendarStatusText.textContent = state.calendarAutoHandoff
       ? state.calendarTarget === "device" && !isNativeCalendarDirectSaveSupported()
-        ? "Direktes Schreiben in den Gerätekalender gibt es erst in der mobilen App. Im Browser greift ein Web-Fallback."
-        : `Neue Termine werden direkt an ${formatCalendarTargetLabel(state.calendarTarget)} übergeben.`
-      : "Kein automatischer Kalendereintrag aktiv.";
+        ? "Kalender-Automatik ist aktiv. In der mobilen App geht es direkt in den Gerätekalender, im Browser greift ein Web-Fallback."
+        : `Kalender-Automatik aktiv: neue Termine gehen direkt an ${formatCalendarTargetLabel(state.calendarTarget)}.`
+      : "Kalender-Automatik aus: neue Termine werden erstmal nur in der App gespeichert.";
   }
   if (els.calendarDeviceStatusText) {
     els.calendarDeviceStatusText.textContent = getCalendarRuntimeStatusText();
@@ -2068,9 +2065,13 @@ function renderAgendaEntry(item) {
           ${calendarLabel ? `<span>${escapeHtml(calendarLabel)}</span>` : ""}
         </div>
       </div>
-      <div class="chips">
-        ${canHandoffToCalendar(item) ? `<button class="ghost tiny-button" type="button" data-action="calendar">Kalender</button>` : ""}
+      <div class="item-top-actions">
         <button class="ghost tiny-button" type="button" data-action="quick-edit">Ändern</button>
+        ${buildItemActionMenuHtml([
+          canHandoffToCalendar(item)
+            ? '<button class="ghost" type="button" data-action="calendar">Kalender</button>'
+            : "",
+        ])}
       </div>
     </div>
   `;
@@ -2136,13 +2137,15 @@ function renderItem(item) {
 	      ${
           isDeleted
             ? `<button class="ghost" type="button" data-action="restore">Wiederherstellen</button>`
-            : `<button class="ghost" type="button" data-action="pin">${item.pinned ? "Lösen" : "Anpinnen"}</button>
-               <button class="ghost icon-action" type="button" data-action="up" aria-label="Nach oben">↑</button>
-               <button class="ghost icon-action" type="button" data-action="down" aria-label="Nach unten">↓</button>
-               <button class="ghost" type="button" data-action="toggle">${item.status === "done" ? "Wieder öffnen" : "Erledigt"}</button>
-               ${canHandoffToCalendar(item) ? `<button class="ghost" type="button" data-action="calendar">Kalender</button>` : ""}
-               <button class="ghost" type="button" data-action="quick-edit">Schnell ändern</button>
-               <button class="danger" type="button" data-action="delete">Löschen</button>`
+            : `<button class="ghost" type="button" data-action="toggle">${item.status === "done" ? "Wieder öffnen" : "Erledigt"}</button>
+               <button class="ghost" type="button" data-action="quick-edit">Ändern</button>
+               ${buildItemActionMenuHtml([
+                 `<button class="ghost" type="button" data-action="pin">${item.pinned ? "Lösen" : "Anpinnen"}</button>`,
+                 `<button class="ghost icon-action" type="button" data-action="up" aria-label="Nach oben">↑ Nach oben</button>`,
+                 `<button class="ghost icon-action" type="button" data-action="down" aria-label="Nach unten">↓ Nach unten</button>`,
+                 canHandoffToCalendar(item) ? `<button class="ghost" type="button" data-action="calendar">Kalender</button>` : "",
+                 `<button class="danger" type="button" data-action="delete">Löschen</button>`,
+               ])}`
         }
 	    </div>
       ${
@@ -2199,6 +2202,19 @@ function renderItem(item) {
   if (!isDeleted) bindQuickEditTriggers(card, item);
 
   return card;
+}
+
+function buildItemActionMenuHtml(actions) {
+  const rendered = actions.filter(Boolean).join("");
+  if (!rendered) return "";
+  return `
+    <details class="item-action-menu">
+      <summary class="ghost tiny-button item-action-menu-toggle" aria-label="Weitere Aktionen">⋯</summary>
+      <div class="item-action-menu-sheet">
+        ${rendered}
+      </div>
+    </details>
+  `;
 }
 
 function renderQuickEditPanel(item) {

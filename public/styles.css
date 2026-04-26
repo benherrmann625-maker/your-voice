@@ -833,6 +833,12 @@ select:focus {
   margin-top: 12px;
 }
 
+.item-top-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .settings-link-button {
   display: inline-flex;
   align-items: center;
@@ -939,15 +945,16 @@ select:focus {
 }
 
 .item-actions {
-  margin-top: 4px;
-  gap: 7px;
+  margin-top: 2px;
+  gap: 6px;
+  align-items: center;
 }
 
 .item-actions .ghost,
 .item-actions .danger {
-  min-height: 32px;
+  min-height: 30px;
   padding-inline: 9px;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
 }
 
 .item-reminders {
@@ -979,9 +986,9 @@ select:focus {
 
 .quick-edit-panel {
   display: grid;
-  gap: 8px;
-  padding: 10px;
-  margin-top: 6px;
+  gap: 6px;
+  padding: 8px;
+  margin-top: 4px;
   border: 1px solid color-mix(in srgb, var(--category-color, var(--accent)), transparent 82%);
   border-radius: var(--radius);
   background: var(--solid);
@@ -1000,14 +1007,14 @@ select:focus {
 
 .quick-edit-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(0, 0.9fr));
+  gap: 6px;
 }
 
 .quick-edit-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .primary,
@@ -1222,15 +1229,15 @@ select:focus {
 .item-card {
   position: relative;
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px;
   border-color: var(--hairline);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--category-color, var(--accent)), transparent 96%), transparent 42%),
     color-mix(in srgb, var(--solid), transparent 5%);
   animation: itemIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition: transform 180ms ease, box-shadow 180ms ease;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .item-card::after {
@@ -1279,8 +1286,8 @@ select:focus {
 .item-top {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
+  align-items: start;
+  gap: 8px;
 }
 
 .item-icon {
@@ -1295,7 +1302,7 @@ select:focus {
 
 .item-title {
   margin: 0;
-  font-size: 0.96rem;
+  font-size: 0.93rem;
   font-weight: 850;
 }
 
@@ -1308,10 +1315,49 @@ select:focus {
 .item-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 3px;
   color: var(--muted);
-  font-size: 0.79rem;
+  font-size: 0.76rem;
+}
+
+.item-action-menu {
+  position: relative;
+}
+
+.item-action-menu summary {
+  list-style: none;
+}
+
+.item-action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.item-action-menu-toggle {
+  min-width: 30px;
+  padding-inline: 8px;
+}
+
+.item-action-menu-sheet {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 12;
+  display: grid;
+  gap: 5px;
+  min-width: 164px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+}
+
+.item-action-menu-sheet .ghost,
+.item-action-menu-sheet .danger {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
 }
 
 .kind {
@@ -1612,21 +1658,66 @@ select:focus {
 
 .agenda-create-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(120px, 0.7fr)) auto;
-  gap: 8px;
-  align-items: end;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(120px, 0.82fr));
+  gap: 10px;
+  align-items: start;
   padding: 0 12px 12px;
   animation: cardIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.repeat-pattern {
-  grid-column: span 2;
 }
 
 .create-event-button {
   background: var(--accent);
   color: white;
   box-shadow: none;
+  justify-self: start;
+}
+
+.agenda-advanced-panel {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--solid), transparent 8%);
+}
+
+.agenda-advanced-panel summary {
+  min-height: 38px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 820;
+  list-style: none;
+}
+
+.agenda-advanced-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.agenda-advanced-panel summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.agenda-advanced-panel[open] summary::after {
+  content: "−";
+}
+
+.agenda-advanced-grid {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.repeat-pattern {
+  grid-column: 1 / -1;
+}
+
+.agenda-calendar-note {
+  grid-column: 1 / -1;
+  margin-top: -2px;
 }
 
 .settings-stack {
@@ -1670,7 +1761,7 @@ select:focus {
 }
 
 .settings-panel > :not(summary) {
-  margin: 0 12px 12px;
+  margin: 0 12px 10px;
   animation: cardIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -1757,7 +1848,7 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 40px;
+  min-height: 36px;
   color: var(--muted);
 }
 
