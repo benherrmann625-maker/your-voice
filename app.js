@@ -82,6 +82,7 @@ const els = {
   agendaReminderInput: document.querySelector("#agendaReminderInput"),
   agendaRepeatInput: document.querySelector("#agendaRepeatInput"),
   agendaCalendarHandoffToggle: document.querySelector("#agendaCalendarHandoffToggle"),
+  agendaCalendarStatusText: document.querySelector("#agendaCalendarStatusText"),
   repeatTextInput: document.querySelector("#repeatTextInput"),
   createAgendaEventButton: document.querySelector("#createAgendaEventButton"),
   calendarViewButtons: [...document.querySelectorAll("[data-calendar-view]")],
@@ -122,6 +123,7 @@ const els = {
   focusModeToggle: document.querySelector("#focusModeToggle"),
   calendarTargetInput: document.querySelector("#calendarTargetInput"),
   calendarAutoHandoffToggle: document.querySelector("#calendarAutoHandoffToggle"),
+  calendarAutoStatusText: document.querySelector("#calendarAutoStatusText"),
   calendarIntegrationNote: document.querySelector("#calendarIntegrationNote"),
   backupButton: document.querySelector("#backupButton"),
   backupStatusText: document.querySelector("#backupStatusText"),
@@ -523,6 +525,16 @@ function applySettings() {
   if (els.calendarTargetInput) els.calendarTargetInput.value = state.calendarTarget;
   if (els.calendarAutoHandoffToggle) els.calendarAutoHandoffToggle.checked = state.calendarAutoHandoff;
   if (els.agendaCalendarHandoffToggle) els.agendaCalendarHandoffToggle.checked = state.calendarAutoHandoff;
+  if (els.calendarAutoStatusText) {
+    els.calendarAutoStatusText.textContent = state.calendarAutoHandoff
+      ? `Automatische Kalenderübernahme ist aktiv: ${formatCalendarTargetLabel(state.calendarTarget)}.`
+      : "Automatische Kalenderübernahme ist aus.";
+  }
+  if (els.agendaCalendarStatusText) {
+    els.agendaCalendarStatusText.textContent = state.calendarAutoHandoff
+      ? `Neue Termine werden direkt an ${formatCalendarTargetLabel(state.calendarTarget)} übergeben.`
+      : "Kein automatischer Kalendereintrag aktiv.";
+  }
   if (els.calendarIntegrationNote) {
     els.calendarIntegrationNote.textContent = state.calendarTarget === "google"
       ? "Google wird direkt mit einem vorgefüllten Kalendereintrag geöffnet. Wenn die Automatik aktiv ist, läuft das direkt nach dem Speichern."
@@ -1993,6 +2005,7 @@ function renderAgendaEntry(item) {
   card.style.setProperty("--category-color", category.color);
   const reminderLabel = getReminderDisplayLabel(item);
   const dueBadge = item.dueStart ? formatDueBadge(item) : "";
+  const calendarLabel = getCalendarLinkedLabel(item);
   card.innerHTML = `
     <div class="item-top">
       <div class="item-icon" aria-hidden="true">${iconSvg(category.icon)}</div>
@@ -2003,6 +2016,7 @@ function renderAgendaEntry(item) {
           ${dueBadge ? `<span>${escapeHtml(dueBadge)}</span>` : ""}
           ${item.recurrenceRule ? "<span>wiederholt</span>" : ""}
           ${reminderLabel ? `<span>${escapeHtml(reminderLabel)}</span>` : ""}
+          ${calendarLabel ? `<span>${escapeHtml(calendarLabel)}</span>` : ""}
         </div>
       </div>
       <div class="chips">
@@ -2040,6 +2054,7 @@ function renderItem(item) {
     item.dueStart ? formatDueBadge(item) : "",
     item.placeLabel ? item.placeLabel : "",
     getReminderDisplayLabel(item),
+    getCalendarLinkedLabel(item),
   ].filter(Boolean);
   const tags = ensureItemTags(item);
   const priority = getItemPriority(item);
@@ -2766,6 +2781,7 @@ function canHandoffToCalendar(item) {
 
 async function handleCalendarHandoffAfterSave(item, options = {}) {
   if ((!state.calendarAutoHandoff && !options.force) || !canHandoffToCalendar(item)) return;
+  if (state.calendarTarget === "prompt") showToast("Kalenderauswahl geöffnet");
   await triggerCalendarHandoff(item.id, "autosave");
 }
 
@@ -2842,6 +2858,19 @@ function buildCalendarHandoffFooter(item) {
     : "";
   if (last && item.calendarLinkState?.target) return `${last} · Ziel ${item.calendarLinkState.target}.`;
   return "Your Voice bleibt deine Quelle in der App. Der Kalender erhält eine zusätzliche Kopie.";
+}
+
+function formatCalendarTargetLabel(target) {
+  if (target === "google") return "Google Kalender";
+  if (target === "ics") return "Smartphone-Kalender (.ics)";
+  return "Auswahl beim Speichern";
+}
+
+function getCalendarLinkedLabel(item) {
+  const target = item?.calendarLinkState?.target;
+  if (target === "google") return "Im Kalender: Google";
+  if (target === "ics") return "Im Kalender: Smartphone";
+  return "";
 }
 
 function handoffItemToGoogleCalendar(item, source = "button") {
