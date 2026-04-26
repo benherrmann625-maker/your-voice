@@ -15,12 +15,17 @@ const html = read("index.html");
 const css = read("styles.css");
 const sw = read("sw.js");
 const manifest = read("manifest.webmanifest");
+const envExample = read(".env.example");
+const packageJson = read("package.json");
+const capacitorConfig = read("capacitor.config.ts");
 const goldset = JSON.parse(read("qa-nlu-goldset.json"));
 const authDocs = read("docs/auth/README.md");
+const mobileDocs = read("docs/mobile/CAPACITOR.md");
 const migrationDocs = read("docs/auth/MIGRATION_PLAN.md");
 const authRoute = read("server/self-hosted/src/routes/auth.js");
 const auth0Lib = read("lib/auth0.ts");
 const middleware = read("middleware.ts");
+const layout = read("app/layout.tsx");
 
 const syntax = spawnSync(process.execPath, ["--check", path.join(root, "app.js")], {
   encoding: "utf8",
@@ -101,6 +106,34 @@ check(
     app.includes("buildSingleItemIcs") &&
     app.includes("calendarAutoHandoff") &&
     css.includes(".calendar-handoff-overlay"),
+);
+check(
+  "google calendar direct save",
+  app.includes("createGoogleCalendarEventDirect") &&
+    app.includes("GOOGLE_CALENDAR_SCOPE") &&
+    app.includes("buildGoogleCalendarEventPayload") &&
+    layout.includes("NEXT_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID") &&
+    layout.includes("accounts.google.com/gsi/client") &&
+    envExample.includes("NEXT_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID"),
+);
+check(
+  "capacitor device calendar direct save",
+  html.includes('value="device"') &&
+    html.includes("calendarOpenAppAfterSaveToggle") &&
+    html.includes("testCalendarButton") &&
+    html.includes("openCalendarAppButton") &&
+    app.includes("handoffItemToDeviceCalendar") &&
+    app.includes("runCalendarCapabilityCheck") &&
+    app.includes("openPreferredCalendarApp") &&
+    app.includes("getNativeCalendarPlugin") &&
+    app.includes("requestFullCalendarAccess") &&
+    app.includes("getDefaultCalendar") &&
+    app.includes("buildNativeCalendarEventPayload") &&
+    packageJson.includes("@capacitor/core") &&
+    packageJson.includes("@ebarooni/capacitor-calendar") &&
+    packageJson.includes("mobile:sync") &&
+    capacitorConfig.includes('webDir: "mobile-shell"') &&
+    mobileDocs.includes("Standardkalender des Geräts"),
 );
 check("daily summary removed", !html.includes("dailySummaryToggle") && !app.includes("buildDailySummaryCard"));
 check(

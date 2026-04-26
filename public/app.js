@@ -7,6 +7,14 @@ const INDEXED_DB_STORE = "app_state";
 const INDEXED_ITEMS_KEY = "items";
 const INDEXED_SETTINGS_KEY = "settings";
 const savedSettings = loadSettings();
+const runtimeConfig =
+  typeof window !== "undefined" && window.__YOURVOICE_RUNTIME__
+    ? window.__YOURVOICE_RUNTIME__
+    : { googleCalendarClientId: "" };
+const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+let googleCalendarTokenClient = null;
+let googleCalendarAccessToken = "";
+let googleCalendarAccessTokenExpiresAt = 0;
 
 const state = {
   items: loadItems(),
@@ -49,8 +57,13 @@ const state = {
   storagePersisted: false,
   storageBackend: typeof indexedDB !== "undefined" ? "indexeddb" : "localstorage",
   storageWarning: "",
-  calendarTarget: normalizeCalendarTarget(savedSettings.calendarTarget),
+  calendarTarget: getInitialCalendarTarget(savedSettings.calendarTarget),
   calendarAutoHandoff: Boolean(savedSettings.calendarAutoHandoff),
+  calendarOpenAppAfterSave: Boolean(savedSettings.calendarOpenAppAfterSave),
+  calendarRuntimeCheck: {
+    status: "idle",
+    detail: "",
+  },
   authUi: {
     loading: true,
     enabled: false,
@@ -123,8 +136,12 @@ const els = {
   focusModeToggle: document.querySelector("#focusModeToggle"),
   calendarTargetInput: document.querySelector("#calendarTargetInput"),
   calendarAutoHandoffToggle: document.querySelector("#calendarAutoHandoffToggle"),
+  calendarOpenAppAfterSaveToggle: document.querySelector("#calendarOpenAppAfterSaveToggle"),
   calendarAutoStatusText: document.querySelector("#calendarAutoStatusText"),
+  calendarDeviceStatusText: document.querySelector("#calendarDeviceStatusText"),
   calendarIntegrationNote: document.querySelector("#calendarIntegrationNote"),
+  testCalendarButton: document.querySelector("#testCalendarButton"),
+  openCalendarAppButton: document.querySelector("#openCalendarAppButton"),
   backupButton: document.querySelector("#backupButton"),
   backupStatusText: document.querySelector("#backupStatusText"),
   localStorageNote: document.querySelector("#localStorageNote"),
@@ -355,6 +372,13 @@ function bindSettingsEvents() {
   els.focusModeToggle.addEventListener("change", () => updateSetting("focusMode", els.focusModeToggle.checked));
   els.calendarTargetInput?.addEventListener("change", () => updateSetting("calendarTarget", els.calendarTargetInput.value));
   els.calendarAutoHandoffToggle?.addEventListener("change", () => updateSetting("calendarAutoHandoff", els.calendarAutoHandoffToggle.checked));
+  els.calendarOpenAppAfterSaveToggle?.addEventListener("change", () => updateSetting("calendarOpenAppAfterSave", els.calendarOpenAppAfterSaveToggle.checked));
+  els.testCalendarButton?.addEventListener("click", () => {
+    void runCalendarCapabilityCheck();
+  });
+  els.openCalendarAppButton?.addEventListener("click", () => {
+    void openPreferredCalendarApp(new Date());
+  });
   els.backupButton?.addEventListener("click", () => {
     exportData();
   });
@@ -486,7 +510,12 @@ function updateSetting(key, value) {
 }
 
 function normalizeCalendarTarget(value) {
-  return ["prompt", "google", "ics"].includes(value) ? value : "prompt";
+  return ["prompt", "device", "google", "ics"].includes(value) ? value : getInitialCalendarTarget();
+}
+
+function getInitialCalendarTarget(value = "") {
+  if (["prompt", "device", "google", "ics"].includes(value)) return value;
+  return isCapacitorNativeApp() ? "device" : "prompt";
 }
 
 function slugify(value) {
@@ -524,6 +553,7 @@ function applySettings() {
   els.focusModeToggle.checked = state.focusMode;
   if (els.calendarTargetInput) els.calendarTargetInput.value = state.calendarTarget;
   if (els.calendarAutoHandoffToggle) els.calendarAutoHandoffToggle.checked = state.calendarAutoHandoff;
+  if (els.calendarOpenAppAfterSaveToggle) els.calendarOpenAppAfterSaveToggle.checked = state.calendarOpenAppAfterSave;
   if (els.agendaCalendarHandoffToggle) els.agendaCalendarHandoffToggle.checked = state.calendarAutoHandoff;
   if (els.calendarAutoStatusText) {
     els.calendarAutoStatusText.textContent = state.calendarAutoHandoff
@@ -532,15 +562,34 @@ function applySettings() {
   }
   if (els.agendaCalendarStatusText) {
     els.agendaCalendarStatusText.textContent = state.calendarAutoHandoff
-      ? `Neue Termine werden direkt an ${formatCalendarTargetLabel(state.calendarTarget)} übergeben.`
+      ? state.calendarTarget === "device" && !isNativeCalendarDirectSaveSupported()
+        ? "Direktes Schreiben in den Gerätekalender gibt es erst in der mobilen App. Im Browser greift ein Web-Fallback."
+        : `Neue Termine werden direkt an ${formatCalendarTargetLabel(state.calendarTarget)} übergeben.`
       : "Kein automatischer Kalendereintrag aktiv.";
   }
+  if (els.calendarDeviceStatusText) {
+    els.calendarDeviceStatusText.textContent = getCalendarRuntimeStatusText();
+  }
   if (els.calendarIntegrationNote) {
-    els.calendarIntegrationNote.textContent = state.calendarTarget === "google"
-      ? "Google wird direkt mit einem vorgefüllten Kalendereintrag geöffnet. Wenn die Automatik aktiv ist, läuft das direkt nach dem Speichern."
-      : state.calendarTarget === "ics"
-        ? "Your Voice erstellt eine .ics-Datei, die du auf iPhone, in Apple Kalender oder in andere Kalender-Apps übernehmen kannst. Mit aktivierter Automatik passiert das direkt nach dem Speichern."
-        : "Wenn die Automatik aktiv ist, fragt Your Voice direkt nach dem Speichern, ob der Eintrag über Google oder als .ics in deinen Smartphone-Kalender soll.";
+    els.calendarIntegrationNote.textContent = state.calendarTarget === "device"
+      ? isNativeCalendarDirectSaveSupported()
+        ? "In der mobilen App schreibt Your Voice Termine direkt in den Standardkalender dieses Geräts und merkt sich die native Event-ID für spätere Updates."
+        : "Der Gerätekalender ist das richtige Ziel für die mobile App. Im Browser steht direktes Speichern dort nicht zur Verfügung."
+      : state.calendarTarget === "google"
+        ? hasGoogleCalendarDirectSave()
+          ? "Google Kalender ist für direktes Speichern vorbereitet. Neue Termine können ohne Extra-Datei direkt in deinen Google Kalender geschrieben werden."
+          : "Google ist als Ziel gewählt. Für direktes Speichern fehlt noch die Google-Client-ID, bis dahin öffnet Your Voice nur den vorgefüllten Google-Kalender."
+        : state.calendarTarget === "ics"
+          ? "Your Voice erstellt eine .ics-Datei, die du auf iPhone, in Apple Kalender oder in andere Kalender-Apps übernehmen kannst. Mit aktivierter Automatik passiert das direkt nach dem Speichern."
+          : isNativeCalendarDirectSaveSupported()
+            ? "Wenn die Automatik aktiv ist, speichert Your Voice auf dem Telefon direkt in den Standardkalender. Auf Wunsch kannst du trotzdem Google oder .ics wählen."
+            : "Wenn die Automatik aktiv ist, fragt Your Voice direkt nach dem Speichern, ob der Eintrag über Google oder als .ics in deinen Smartphone-Kalender soll.";
+  }
+  if (els.testCalendarButton) {
+    els.testCalendarButton.textContent = isNativeCalendarDirectSaveSupported() ? "Standardkalender testen" : "Mobile Kalenderlogik prüfen";
+  }
+  if (els.openCalendarAppButton) {
+    els.openCalendarAppButton.disabled = false;
   }
 
   if (state.recognition) {
@@ -2651,8 +2700,11 @@ function canonicalizeItem(item) {
           target: item.calendarLinkState.target || "",
           method: item.calendarLinkState.method || "",
           lastSentAt: item.calendarLinkState.lastSentAt || "",
+          externalId: item.calendarLinkState.externalId || "",
+          calendarId: item.calendarLinkState.calendarId || "",
+          externalUrl: item.calendarLinkState.externalUrl || "",
         }
-      : { target: "", method: "", lastSentAt: "" },
+      : { target: "", method: "", lastSentAt: "", externalId: "", calendarId: "", externalUrl: "" },
     status: lifecycleStatus === "deleted" ? "deleted" : lifecycleStatus === "done" ? "done" : "open",
     lifecycleStatus,
     parseConfidence: Number(item.parseConfidence || item.confidence || 0.5),
@@ -2691,6 +2743,7 @@ function snapshotSettings() {
     focusMode: state.focusMode,
     calendarTarget: state.calendarTarget,
     calendarAutoHandoff: state.calendarAutoHandoff,
+    calendarOpenAppAfterSave: state.calendarOpenAppAfterSave,
     lastBackupAt: state.lastBackupAt,
     lastImportedAt: state.lastImportedAt,
     hideDone: state.hideDone,
@@ -2788,8 +2841,12 @@ async function handleCalendarHandoffAfterSave(item, options = {}) {
 async function triggerCalendarHandoff(itemId, source = "button") {
   const item = state.items.find((entry) => entry.id === itemId);
   if (!item || !canHandoffToCalendar(item)) return;
+  if (state.calendarTarget === "device") {
+    await handoffItemToDeviceCalendar(item, source);
+    return;
+  }
   if (state.calendarTarget === "google") {
-    handoffItemToGoogleCalendar(item, source);
+    await handoffItemToGoogleCalendar(item, source);
     return;
   }
   if (state.calendarTarget === "ics") {
@@ -2805,9 +2862,12 @@ async function openCalendarHandoffSheet(item, source = "button") {
   overlay.className = "calendar-handoff-overlay";
   overlay.dataset.calendarOverlay = "true";
   const isEventLike = isEventLikeCalendarItem(item);
-  const subtitle = isEventLike
-    ? "Google funktioniert am direktesten. Für iPhone, Apple Kalender und andere Kalender-Apps ist .ics der sichere Weg."
-    : "Für Aufgaben und Erinnerungen ist .ics meist der zuverlässigste Smartphone-Fallback. Google kann den Eintrag bei Bedarf als Termin übernehmen.";
+  const canUseDeviceCalendar = isNativeCalendarDirectSaveSupported();
+  const subtitle = canUseDeviceCalendar
+    ? "Auf diesem Gerät kann Your Voice direkt in den Standardkalender schreiben. Google und .ics bleiben als zusätzliche Wege verfügbar."
+    : isEventLike
+      ? "Google funktioniert im Browser am direktesten. Für iPhone, Apple Kalender und andere Kalender-Apps ist .ics der sichere Weg."
+      : "Für Aufgaben und Erinnerungen ist .ics im Browser meist der zuverlässigste Smartphone-Fallback. In der mobilen App kann Your Voice direkt in den Standardkalender schreiben.";
   overlay.innerHTML = `
     <div class="calendar-handoff-sheet" role="dialog" aria-modal="true" aria-labelledby="calendarHandoffTitle">
       <div class="calendar-handoff-head">
@@ -2824,7 +2884,8 @@ async function openCalendarHandoffSheet(item, source = "button") {
         ${item.placeLabel ? `<span>${escapeHtml(item.placeLabel)}</span>` : ""}
       </div>
       <div class="calendar-handoff-actions">
-        <button class="primary" type="button" data-calendar-mode="google">Google Kalender</button>
+        ${canUseDeviceCalendar ? '<button class="primary" type="button" data-calendar-mode="device">Standardkalender des Geräts</button>' : '<button class="primary" type="button" data-calendar-mode="google">Google Kalender</button>'}
+        ${canUseDeviceCalendar ? '<button class="ghost" type="button" data-calendar-mode="google">Google Kalender</button>' : ""}
         <button class="ghost" type="button" data-calendar-mode="ics">Smartphone-Kalender (.ics)</button>
       </div>
       <p class="settings-note">${escapeHtml(buildCalendarHandoffFooter(item))}</p>
@@ -2837,9 +2898,13 @@ async function openCalendarHandoffSheet(item, source = "button") {
     if (event.target === overlay) closeCalendarHandoffSheet();
   });
   overlay.querySelector("[data-calendar-close]")?.addEventListener("click", closeCalendarHandoffSheet);
-  overlay.querySelector('[data-calendar-mode="google"]')?.addEventListener("click", () => {
+  overlay.querySelector('[data-calendar-mode="device"]')?.addEventListener("click", async () => {
     closeCalendarHandoffSheet();
-    handoffItemToGoogleCalendar(item, source);
+    await handoffItemToDeviceCalendar(item, source);
+  });
+  overlay.querySelector('[data-calendar-mode="google"]')?.addEventListener("click", async () => {
+    closeCalendarHandoffSheet();
+    await handoffItemToGoogleCalendar(item, source);
   });
   overlay.querySelector('[data-calendar-mode="ics"]')?.addEventListener("click", async () => {
     closeCalendarHandoffSheet();
@@ -2856,24 +2921,407 @@ function buildCalendarHandoffFooter(item) {
   const last = item.calendarLinkState?.lastSentAt
     ? `Zuletzt übergeben ${formatDateTime(item.calendarLinkState.lastSentAt, false)}`
     : "";
-  if (last && item.calendarLinkState?.target) return `${last} · Ziel ${item.calendarLinkState.target}.`;
+  if (last && item.calendarLinkState?.target) return `${last} · Ziel ${formatCalendarTargetLabel(item.calendarLinkState.target)}.`;
   return "Your Voice bleibt deine Quelle in der App. Der Kalender erhält eine zusätzliche Kopie.";
 }
 
 function formatCalendarTargetLabel(target) {
+  if (target === "device") return "Standardkalender des Geräts";
   if (target === "google") return "Google Kalender";
   if (target === "ics") return "Smartphone-Kalender (.ics)";
   return "Auswahl beim Speichern";
 }
 
+function getCalendarRuntimeStatusText() {
+  if (state.calendarRuntimeCheck.detail) return state.calendarRuntimeCheck.detail;
+  if (isNativeCalendarDirectSaveSupported()) {
+    return "Mobile App erkannt. Termine können direkt im Standardkalender dieses Geräts gespeichert werden.";
+  }
+  if (isCapacitorNativeApp()) {
+    return "Mobile App erkannt, aber das Kalender-Plugin ist noch nicht vollständig verfügbar.";
+  }
+  return "Browser erkannt. Direktes Speichern in den Gerätekalender gibt es erst in der mobilen App.";
+}
+
+function isCapacitorNativeApp() {
+  if (typeof window === "undefined") return false;
+  const capacitor = window.Capacitor;
+  if (!capacitor) return false;
+  if (typeof capacitor.isNativePlatform === "function") return Boolean(capacitor.isNativePlatform());
+  const platform = typeof capacitor.getPlatform === "function" ? capacitor.getPlatform() : "";
+  return platform === "ios" || platform === "android";
+}
+
+function getNativeCalendarPlugin() {
+  if (typeof window === "undefined") return null;
+  const plugins = window.Capacitor?.Plugins || {};
+  return plugins.Calendar || plugins.CapacitorCalendar || plugins.EbarooniCapacitorCalendar || null;
+}
+
+function isNativeCalendarDirectSaveSupported() {
+  if (!isCapacitorNativeApp()) return false;
+  if (typeof window?.Capacitor?.isPluginAvailable === "function") {
+    return [
+      window.Capacitor.isPluginAvailable("Calendar"),
+      window.Capacitor.isPluginAvailable("CapacitorCalendar"),
+      window.Capacitor.isPluginAvailable("EbarooniCapacitorCalendar"),
+    ].some(Boolean);
+  }
+  return Boolean(getNativeCalendarPlugin());
+}
+
+function hasGoogleCalendarClientId() {
+  return Boolean(runtimeConfig.googleCalendarClientId);
+}
+
+function hasGoogleCalendarDirectSave() {
+  return hasGoogleCalendarClientId() && typeof window !== "undefined";
+}
+
 function getCalendarLinkedLabel(item) {
   const target = item?.calendarLinkState?.target;
-  if (target === "google") return "Im Kalender: Google";
+  if (target === "device") return "Im Kalender: Gerät";
+  if (target === "google") {
+    if (item?.calendarLinkState?.method === "api") return "Im Kalender: Google direkt";
+    return "Im Kalender: Google";
+  }
   if (target === "ics") return "Im Kalender: Smartphone";
   return "";
 }
 
-function handoffItemToGoogleCalendar(item, source = "button") {
+async function ensureNativeCalendarAccess() {
+  if (!isCapacitorNativeApp()) throw new Error("native_calendar_not_available");
+  const calendar = getNativeCalendarPlugin();
+  if (!calendar) throw new Error("native_calendar_plugin_missing");
+
+  const granted = await requestNativeCalendarPermission(calendar);
+  if (!granted) throw new Error("native_calendar_permission_denied");
+
+  return calendar;
+}
+
+async function requestNativeCalendarPermission(calendar) {
+  const permissionCalls = [
+    () => calendar.checkPermission?.({ scope: "writeCalendar" }),
+    () => calendar.requestFullCalendarAccess?.(),
+    () => calendar.requestWriteOnlyCalendarAccess?.(),
+    () => calendar.requestPermission?.({ scope: "writeCalendar" }),
+  ];
+
+  for (const run of permissionCalls) {
+    try {
+      const response = await run();
+      if (response?.result === "granted") return true;
+    } catch {
+      continue;
+    }
+  }
+
+  return false;
+}
+
+async function openPreferredCalendarApp(date = new Date()) {
+  if (isNativeCalendarDirectSaveSupported()) {
+    try {
+      const calendar = getNativeCalendarPlugin();
+      await calendar?.openCalendar?.({ date: date.getTime() });
+      showToast("Kalender-App geöffnet");
+      return;
+    } catch {
+      showToast("Kalender-App konnte nicht geöffnet werden");
+      return;
+    }
+  }
+
+  if (state.calendarTarget === "google") {
+    window.open("https://calendar.google.com/calendar/u/0/r", "_blank", "noopener,noreferrer");
+    showToast("Google Kalender geöffnet");
+    return;
+  }
+
+  showToast("Kalender-App direkt öffnen gibt es erst in der mobilen App.");
+}
+
+async function runCalendarCapabilityCheck() {
+  if (!isCapacitorNativeApp()) {
+    state.calendarRuntimeCheck = {
+      status: "browser",
+      detail: "Browser erkannt. Für direktes Schreiben in den Gerätekalender brauchst du die mobile App mit Capacitor.",
+    };
+    applySettings();
+    showToast("Im Browser geprüft");
+    return;
+  }
+
+  try {
+    const calendar = await ensureNativeCalendarAccess();
+    const calendarId = await resolveNativeDeviceCalendarId(calendar);
+    state.calendarRuntimeCheck = {
+      status: "ready",
+      detail: calendarId
+        ? "Standardkalender gefunden. Your Voice kann hier direkt speichern."
+        : "Kalenderzugriff vorhanden. Das Ziel wird beim Speichern automatisch gewählt.",
+    };
+    applySettings();
+    showToast("Kalender bereit");
+  } catch (error) {
+    state.calendarRuntimeCheck = {
+      status: "error",
+      detail: "Kalenderzugriff noch nicht bereit. Bitte Berechtigungen in der mobilen App erlauben.",
+    };
+    applySettings();
+    showToast("Kalenderzugriff fehlt");
+  }
+}
+
+async function resolveNativeDeviceCalendarId(calendar) {
+  try {
+    const defaultCalendar = await calendar.getDefaultCalendar?.();
+    if (defaultCalendar?.result?.id) return defaultCalendar.result.id;
+  } catch {
+    /* noop */
+  }
+
+  try {
+    const calendars = await calendar.listCalendars?.();
+    const list = Array.isArray(calendars?.result) ? calendars.result : [];
+    const writable = list.find((entry) => entry?.isImmutable !== true && entry?.allowsContentModifications !== false);
+    return writable?.id || list[0]?.id || "";
+  } catch {
+    return "";
+  }
+}
+
+function buildNativeCalendarAlerts(item) {
+  const offset = Number(item?.reminderOffset || 0);
+  if (!offset || offset < 0) return [];
+  return [-offset];
+}
+
+function buildNativeCalendarRecurrence(rule, start) {
+  if (!rule) return undefined;
+  const entries = Object.fromEntries(
+    rule
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const [key, value] = part.split("=");
+        return [key, value];
+      }),
+  );
+  const frequency = entries.FREQ ? entries.FREQ.toLowerCase() : "";
+  if (!frequency) return undefined;
+
+  const recurrence = {
+    frequency,
+    interval: Math.max(1, Number(entries.INTERVAL || 1)),
+  };
+
+  if (entries.COUNT) recurrence.count = Math.max(1, Number(entries.COUNT));
+  if (entries.BYDAY) {
+    recurrence.byWeekDay = entries.BYDAY
+      .split(",")
+      .map((value) => value.trim().replace(/^-?\d+/, ""))
+      .map((value) => ({ MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 7 }[value] || 0))
+      .filter(Boolean);
+  }
+  if (entries.BYMONTHDAY) {
+    recurrence.byMonthDay = entries.BYMONTHDAY
+      .split(",")
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value >= 1 && value <= 31);
+  }
+  if (entries.BYMONTH) {
+    recurrence.byMonth = entries.BYMONTH
+      .split(",")
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value >= 1 && value <= 12);
+  }
+
+  if (frequency === "weekly" && !recurrence.byWeekDay?.length) recurrence.byWeekDay = [start.getDay() === 0 ? 7 : start.getDay()];
+  if (frequency === "monthly" && !recurrence.byMonthDay?.length) recurrence.byMonthDay = [start.getDate()];
+  if (frequency === "yearly") {
+    if (!recurrence.byMonth?.length) recurrence.byMonth = [start.getMonth() + 1];
+    if (!recurrence.byMonthDay?.length) recurrence.byMonthDay = [start.getDate()];
+  }
+
+  return recurrence;
+}
+
+function buildNativeCalendarEventPayload(item, calendarId = "", eventId = "") {
+  const start = new Date(item.dueStart || item.agendaDate || item.createdAt);
+  const end = item.allDay ? addDays(startOfDay(start), 1) : new Date(start.getTime() + 60 * 60000);
+  const payload = {
+    title: cleanDisplayText(item.title || "Eintrag"),
+    description: buildGoogleCalendarDetails(item),
+    startDate: start.getTime(),
+    endDate: end.getTime(),
+    isAllDay: Boolean(item.allDay),
+    location: item.placeLabel ? cleanDisplayText(item.placeLabel) : undefined,
+    alerts: buildNativeCalendarAlerts(item),
+    recurrence: buildNativeCalendarRecurrence(item.recurrenceRule, start),
+    calendarId: calendarId || undefined,
+    id: eventId || undefined,
+    commit: true,
+  };
+
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined && value !== null && value !== ""));
+}
+
+async function handoffItemToDeviceCalendar(item, source = "button") {
+  if (!isCapacitorNativeApp()) {
+    state.calendarRuntimeCheck = {
+      status: "browser",
+      detail: "Der Gerätekalender ist ausgewählt, aber du bist gerade im Browser. Your Voice nutzt deshalb den Web-Fallback.",
+    };
+    applySettings();
+    showToast("Direktes Speichern im Gerätekalender gibt es in der mobilen App.");
+    await openCalendarHandoffSheet(item, source);
+    return;
+  }
+
+  try {
+    const calendar = await ensureNativeCalendarAccess();
+    const calendarId = await resolveNativeDeviceCalendarId(calendar);
+    const existingLink = item.calendarLinkState || {};
+    const existingEventId = existingLink.target === "device" ? existingLink.externalId || "" : "";
+    const payload = buildNativeCalendarEventPayload(item, calendarId, existingEventId);
+
+    let eventId = existingEventId;
+    if (eventId && typeof calendar.modifyEvent === "function") {
+      await calendar.modifyEvent(payload);
+    } else {
+      const created = await calendar.createEvent(payload);
+      eventId = created?.id || "";
+    }
+
+    if (typeof calendar.commit === "function") {
+      try {
+        await calendar.commit();
+      } catch {
+        /* noop */
+      }
+    }
+
+    rememberCalendarHandoff(item.id, {
+      target: "device",
+      method: source === "autosave" ? "native-auto" : "native-default",
+      lastSentAt: new Date().toISOString(),
+      externalId: eventId,
+      calendarId,
+    });
+    state.calendarRuntimeCheck = {
+      status: "ready",
+      detail: "Standardkalender verbunden. Neue Termine werden direkt auf dem Gerät gespeichert.",
+    };
+    applySettings();
+    showToast(existingEventId ? "Im Standardkalender aktualisiert" : "Im Standardkalender gespeichert");
+    if (state.calendarOpenAppAfterSave) {
+      await openPreferredCalendarApp(new Date(item.dueStart || item.agendaDate || item.createdAt));
+    }
+  } catch (error) {
+    console.warn("Native calendar direct save failed", error);
+    state.calendarRuntimeCheck = {
+      status: "error",
+      detail: "Direktes Speichern in den Gerätekalender hat gerade nicht funktioniert. Prüfe die mobile Berechtigung oder nutze Google/.ics als Fallback.",
+    };
+    applySettings();
+    showToast("Direktes Speichern in den Gerätekalender hat nicht geklappt.");
+  }
+}
+
+async function waitForGoogleIdentityClient(timeoutMs = 10000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (window.google?.accounts?.oauth2) return window.google.accounts.oauth2;
+    await new Promise((resolve) => window.setTimeout(resolve, 80));
+  }
+  throw new Error("google_identity_unavailable");
+}
+
+function getGoogleCalendarTokenClient() {
+  if (googleCalendarTokenClient) return googleCalendarTokenClient;
+  googleCalendarTokenClient = window.google.accounts.oauth2.initTokenClient({
+    client_id: runtimeConfig.googleCalendarClientId,
+    scope: GOOGLE_CALENDAR_SCOPE,
+    callback: () => {},
+    error_callback: () => {},
+  });
+  return googleCalendarTokenClient;
+}
+
+async function ensureGoogleCalendarAccess(interactive = true) {
+  if (!hasGoogleCalendarClientId()) throw new Error("google_client_id_missing");
+  await waitForGoogleIdentityClient();
+  if (googleCalendarAccessToken && googleCalendarAccessTokenExpiresAt > Date.now() + 5000) {
+    return googleCalendarAccessToken;
+  }
+
+  const client = getGoogleCalendarTokenClient();
+  return await new Promise((resolve, reject) => {
+    client.callback = (response) => {
+      if (response?.error) {
+        reject(new Error(response.error));
+        return;
+      }
+      googleCalendarAccessToken = response.access_token || "";
+      const expiresInMs = Number(response.expires_in || 3600) * 1000;
+      googleCalendarAccessTokenExpiresAt = Date.now() + expiresInMs;
+      resolve(googleCalendarAccessToken);
+    };
+    client.error_callback = (error) => {
+      reject(new Error(error?.type || "google_auth_error"));
+    };
+    client.requestAccessToken({
+      prompt: interactive ? (googleCalendarAccessToken ? "" : "consent") : "",
+    });
+  });
+}
+
+async function createGoogleCalendarEventDirect(item) {
+  const token = await ensureGoogleCalendarAccess(true);
+  const payload = buildGoogleCalendarEventPayload(item);
+  const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`google_calendar_insert_failed:${response.status}:${text.slice(0, 200)}`);
+  }
+
+  return await response.json();
+}
+
+async function handoffItemToGoogleCalendar(item, source = "button") {
+  if (hasGoogleCalendarDirectSave()) {
+    try {
+      const created = await createGoogleCalendarEventDirect(item);
+      rememberCalendarHandoff(item.id, {
+        target: "google",
+        method: "api",
+        lastSentAt: new Date().toISOString(),
+        externalId: created?.id || "",
+        externalUrl: created?.htmlLink || "",
+      });
+      if (created?.htmlLink) {
+        showToast("Direkt in Google Kalender gespeichert");
+      } else {
+        showToast("Termin in Google Kalender angelegt");
+      }
+      return;
+    } catch (error) {
+      console.warn("Google calendar direct save failed", error);
+      showToast("Direktes Speichern fehlgeschlagen, Google Kalender wird geöffnet");
+    }
+  }
+
   const url = buildGoogleCalendarCreateUrl(item);
   window.open(url, "_blank", "noopener,noreferrer");
   rememberCalendarHandoff(item.id, {
@@ -2903,6 +3351,9 @@ function rememberCalendarHandoff(id, nextState) {
       target: nextState.target || "",
       method: nextState.method || "",
       lastSentAt: nextState.lastSentAt || new Date().toISOString(),
+      externalId: nextState.externalId || "",
+      calendarId: nextState.calendarId || "",
+      externalUrl: nextState.externalUrl || "",
     },
   });
 }
@@ -2960,6 +3411,42 @@ function buildGoogleCalendarCreateUrl(item) {
     : `${formatUtcIcsDate(start)}/${formatUtcIcsDate(end)}`);
   if (item.recurrenceRule) url.searchParams.set("recur", `RRULE:${item.recurrenceRule}`);
   return url.toString();
+}
+
+function buildGoogleCalendarEventPayload(item) {
+  const start = new Date(item.dueStart || item.agendaDate || item.createdAt);
+  const end = item.allDay ? addDays(startOfDay(start), 1) : new Date(start.getTime() + 60 * 60000);
+  const payload = {
+    summary: cleanDisplayText(item.title || "Eintrag"),
+    description: buildGoogleCalendarDetails(item),
+    extendedProperties: {
+      private: {
+        appEventId: item.id,
+      },
+    },
+  };
+
+  if (item.placeLabel) payload.location = cleanDisplayText(item.placeLabel);
+  if (item.recurrenceRule) payload.recurrence = [`RRULE:${item.recurrenceRule}`];
+
+  if (item.allDay) {
+    payload.start = { date: formatIcsDate(start) };
+    payload.end = { date: formatIcsDate(end) };
+  } else {
+    const timeZone = item.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
+    payload.start = { dateTime: start.toISOString(), timeZone };
+    payload.end = { dateTime: end.toISOString(), timeZone };
+  }
+
+  if (!item.reminderDisabled) {
+    const minutes = Math.max(0, Number(item.reminderOffset || 0));
+    payload.reminders = {
+      useDefault: false,
+      overrides: [{ method: "popup", minutes }],
+    };
+  }
+
+  return payload;
 }
 
 function buildGoogleCalendarDetails(item) {
@@ -3240,6 +3727,7 @@ async function hydratePersistentState() {
 }
 
 function registerServiceWorker() {
+  if (isCapacitorNativeApp()) return;
   if (!("serviceWorker" in navigator)) return;
   navigator.serviceWorker.register("/sw.js").catch(() => {
     document.querySelector("#storageStatus").textContent = "Offline ohne Cache";

@@ -401,6 +401,7 @@
               <summary>Kalender</summary>
               <label class="input-label" for="calendarTargetInput">Standardziel</label>
               <select id="calendarTargetInput">
+                <option value="device">Standardkalender des Geräts</option>
                 <option value="prompt">Immer fragen</option>
                 <option value="google">Google Kalender</option>
                 <option value="ics">Smartphone-Kalender (.ics)</option>
@@ -409,13 +410,24 @@
                 <span>Termine mit Datum/Uhrzeit automatisch in Kalender übernehmen</span>
                 <input id="calendarAutoHandoffToggle" type="checkbox" />
               </div>
+              <div class="toggle-row">
+                <span>Nach dem Speichern direkt Kalender-App öffnen</span>
+                <input id="calendarOpenAppAfterSaveToggle" type="checkbox" />
+              </div>
               <p class="settings-note" id="calendarAutoStatusText">
                 Automatische Kalenderübernahme ist aus.
               </p>
-              <p class="settings-note" id="calendarIntegrationNote">
-                Google öffnet einen vorgefüllten Kalendereintrag. Für iPhone, Apple Kalender und andere Kalender-Apps
-                nutzt Your Voice eine .ics-Datei zum Teilen oder Importieren.
+              <p class="settings-note" id="calendarDeviceStatusText">
+                Kalenderstatus wird geprüft.
               </p>
+              <p class="settings-note" id="calendarIntegrationNote">
+                In der mobilen App schreibt Your Voice direkt in den Standardkalender des Geräts. Im Browser bleiben
+                Google und .ics die Web-Fallbacks.
+              </p>
+              <div class="settings-actions">
+                <button class="ghost" id="testCalendarButton" type="button">Kalenderzugriff testen</button>
+                <button class="ghost" id="openCalendarAppButton" type="button">Kalender-App öffnen</button>
+              </div>
             </details>
 
             <details class="settings-panel">

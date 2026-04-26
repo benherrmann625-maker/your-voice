@@ -18,10 +18,20 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const runtimeConfig = {
+    googleCalendarClientId: process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID || "",
+  };
+
   return (
     <html lang="de">
       <head>
         <link rel="stylesheet" href="/styles.css" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__YOURVOICE_RUNTIME__ = ${JSON.stringify(runtimeConfig).replace(/</g, "\\u003c")};`,
+          }}
+        />
+        <script src="https://accounts.google.com/gsi/client" async defer />
       </head>
       <body suppressHydrationWarning>{children}</body>
     </html>

@@ -8,9 +8,32 @@ Ruhige, local-first Voice-Organizer-App mit klarer Inbox, Agenda, Suche und redu
 - deutscher Regelparser für Aufgaben, Termine, Erinnerungen und Wiederholungen
 - kompakte Inbox mit Drag & Drop, `Erledigt` und `Gelöscht`
 - reduzierte Agenda mit manueller Termin-Erstellung und `.ics`-Export
+- mobile Capacitor-Hülle für direkten Standardkalender-Zugriff auf iPhone und Android
 - Suche mit Filtern für Datum, Bereich und Wichtigkeit
 - Reminder, Snooze und Schnellbearbeitung direkt an Einträgen
 - schlichte, bewusst reduzierte Oberfläche ohne Install-Prompts, Gast-Hinweise oder Fokus-Overlay
+
+## Mobile App mit Gerätekalender
+
+Für das Ziel „Termine direkt im Standardkalender des Geräts speichern“ gibt es jetzt zusätzlich eine Capacitor-Basis.
+
+- Konfig: [capacitor.config.ts](/Users/benten09/Documents/Codex/2026-04-21-ich-werde-dir-gleich-eine-gesamte-2/capacitor.config.ts)
+- Mobile-Build: [scripts/build-mobile-shell.mjs](/Users/benten09/Documents/Codex/2026-04-21-ich-werde-dir-gleich-eine-gesamte-2/scripts/build-mobile-shell.mjs)
+- Doku: [docs/mobile/CAPACITOR.md](/Users/benten09/Documents/Codex/2026-04-21-ich-werde-dir-gleich-eine-gesamte-2/docs/mobile/CAPACITOR.md)
+
+Wichtige Scripts:
+
+```bash
+npm run mobile:sync
+npm run mobile:ios
+npm run mobile:android
+```
+
+In der App selbst findest du dann unter **Einstellungen → Kalender** zusätzlich:
+
+- `Standardkalender des Geräts`
+- `Nach dem Speichern direkt Kalender-App öffnen`
+- `Kalenderzugriff testen`
 
 ## Auth-Referenzen im Repository
 
