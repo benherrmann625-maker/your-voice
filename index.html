@@ -42,10 +42,6 @@
             <span aria-hidden="true" data-nav-icon="search"></span>
             Suche
           </button>
-          <button class="tab" data-view="tips" type="button">
-            <span aria-hidden="true" data-nav-icon="spark"></span>
-            Tipps
-          </button>
           <button class="tab" data-view="settings" type="button">
             <span aria-hidden="true" data-nav-icon="settings"></span>
             Einstellungen
@@ -63,9 +59,14 @@
             <p class="eyebrow">Workspace</p>
             <h2 id="viewTitle">Schnell erfassen</h2>
           </div>
-          <button class="icon-button" id="themeButton" type="button" aria-label="Darstellung wechseln">
-            <span aria-hidden="true">◐</span>
-          </button>
+          <div class="topbar-actions">
+            <button class="icon-button" id="themeButton" type="button" aria-label="Darstellung wechseln">
+              <span aria-hidden="true">◐</span>
+            </button>
+            <button class="icon-button" id="settingsTopbarButton" type="button" aria-label="Einstellungen öffnen">
+              <span aria-hidden="true">⚙</span>
+            </button>
+          </div>
         </section>
 
         <section class="view active" id="captureView" aria-labelledby="viewTitle">
@@ -240,63 +241,6 @@
           <div class="item-list" id="searchList"></div>
         </section>
 
-        <section class="view" id="tipsView" aria-labelledby="viewTitle">
-          <div class="settings-stack">
-            <details class="settings-panel" id="appOfflinePanel">
-              <summary>Wie sprechen</summary>
-              <ul class="simple-list">
-                <li>Klar und natürlich sprechen</li>
-                <li>Möglichst ein Gedanke pro Aufnahme</li>
-                <li>Bei Aufgaben direkt die Handlung nennen</li>
-                <li>Bei Terminen Datum und Uhrzeit nennen</li>
-                <li>Keine Befehle nötig, normale Sprache reicht</li>
-              </ul>
-            </details>
-            <details class="settings-panel" id="privacyPanel">
-              <summary>Gute Beispiele</summary>
-              <ul class="simple-list">
-                <li>Morgen 14 Uhr Zahnarzt</li>
-                <li>Deutsch Abi lernen</li>
-                <li>Mit Oma und Opa Döner essen</li>
-                <li>Brot und Milch kaufen</li>
-                <li>Freitag 16 Uhr Fußballtraining</li>
-              </ul>
-            </details>
-            <details class="settings-panel">
-              <summary>Was erkannt wird</summary>
-              <ul class="simple-list">
-                <li>Aufgaben und To-dos</li>
-                <li>Termine und Erinnerungen</li>
-                <li>Einkäufe und Essen</li>
-                <li>Familienaktivitäten</li>
-                <li>Schule, Lernen und Prüfungen</li>
-                <li>Ideen, Finanzen und persönliche Notizen</li>
-              </ul>
-            </details>
-            <details class="settings-panel">
-              <summary>Erkennung verbessern</summary>
-              <ul class="simple-list">
-                <li>Vollständige Formulierungen helfen</li>
-                <li>Uhrzeiten deutlich nennen</li>
-                <li>Datum nennen, wenn etwas in die Agenda soll</li>
-                <li>Themen nicht zu stark vermischen</li>
-                <li>Kurze Aussagen funktionieren oft am besten</li>
-              </ul>
-            </details>
-            <details class="settings-panel">
-              <summary>Alltagssituationen</summary>
-              <ul class="simple-list">
-                <li>Schule: Mathe lernen, Hausaufgaben, Abi vorbereiten</li>
-                <li>Familie: Oma besuchen, Mama anrufen, Treffen planen</li>
-                <li>Einkauf: Brot, Milch, Eier kaufen</li>
-                <li>Arzttermine: Freitag 10 Uhr Zahnarzt</li>
-                <li>Freizeit: Samstag 16 Uhr Training</li>
-                <li>Finanzen: Miete zahlen, Rechnung prüfen</li>
-              </ul>
-            </details>
-          </div>
-        </section>
-
         <section class="view" id="settingsView" aria-labelledby="viewTitle">
           <div class="settings-stack">
             <details class="settings-panel">
@@ -336,6 +280,21 @@
                 <option>Rose</option>
                 <option>Forest</option>
                 <option>Kontrast</option>
+                <option>Neutral</option>
+                <option>Sky</option>
+                <option>Sand</option>
+                <option>Berry</option>
+              </select>
+              <label class="input-label" for="accentToneInput">Akzentfarbe</label>
+              <select id="accentToneInput">
+                <option>Automatisch</option>
+                <option>Indigo</option>
+                <option>Blau</option>
+                <option>Grün</option>
+                <option>Koralle</option>
+                <option>Gold</option>
+                <option>Pink</option>
+                <option>Neutral</option>
               </select>
               <label class="input-label" for="styleModeInput">Stil</label>
               <select id="styleModeInput">
@@ -343,15 +302,33 @@
                 <option>Soft</option>
                 <option>Kontrastreich</option>
               </select>
+              <label class="input-label" for="densityInput">UI-Dichte</label>
+              <select id="densityInput">
+                <option>Sehr kompakt</option>
+                <option>Kompakt</option>
+                <option>Komfortabel</option>
+              </select>
               <label class="input-label" for="fontSizeInput">Schriftgröße</label>
               <select id="fontSizeInput">
                 <option>Klein</option>
                 <option>Normal</option>
                 <option>Groß</option>
               </select>
+              <label class="input-label" for="fontFamilyInput">Schriftart</label>
+              <select id="fontFamilyInput">
+                <option>Modern</option>
+                <option>Klassisch</option>
+                <option>Minimal</option>
+              </select>
+              <label class="input-label" for="radiusStyleInput">Rundungen</label>
+              <select id="radiusStyleInput">
+                <option>Klar</option>
+                <option>Sanft</option>
+                <option>Rund</option>
+              </select>
               <div class="toggle-row">
-                <span>Kompaktes Layout</span>
-                <input id="compactLayoutToggle" type="checkbox" />
+                <span>Animationen</span>
+                <input id="animationsToggle" type="checkbox" checked />
               </div>
             </details>
 
@@ -400,20 +377,9 @@
 
             <details class="settings-panel">
               <summary>Kalender</summary>
-              <label class="input-label" for="calendarTargetInput">Standardziel</label>
-              <select id="calendarTargetInput">
-                <option value="device">Standardkalender des Geräts</option>
-                <option value="prompt">Immer fragen</option>
-                <option value="google">Google Kalender</option>
-                <option value="ics">Smartphone-Kalender (.ics)</option>
-              </select>
               <div class="toggle-row">
-                <span>Neue Termine automatisch in den Kalender übernehmen</span>
+                <span>Termine automatisch im Kalender speichern</span>
                 <input id="calendarAutoHandoffToggle" type="checkbox" />
-              </div>
-              <div class="toggle-row">
-                <span>Nach dem Speichern direkt Kalender-App öffnen</span>
-                <input id="calendarOpenAppAfterSaveToggle" type="checkbox" />
               </div>
               <p class="settings-note" id="calendarAutoStatusText">
                 Automatische Kalenderübernahme ist aus.
@@ -422,13 +388,82 @@
                 Kalenderstatus wird geprüft.
               </p>
               <p class="settings-note" id="calendarIntegrationNote">
-                In der mobilen App schreibt Your Voice direkt in den Standardkalender des Geräts. Im Browser bleiben
-                Google und .ics die Web-Fallbacks.
+                Auf iPhone schreibt die mobile YourVoice-App direkt in Apple Kalender. Im Browser bleibt ein Fallback nötig.
               </p>
-              <div class="settings-actions">
-                <button class="ghost" id="testCalendarButton" type="button">Kalenderzugriff testen</button>
-                <button class="ghost" id="openCalendarAppButton" type="button">Kalender-App öffnen</button>
-              </div>
+              <details class="mini-help">
+                <summary>Erweiterte Kalenderoptionen</summary>
+                <label class="input-label" for="calendarTargetInput">Kalenderziel</label>
+                <select id="calendarTargetInput">
+                  <option value="device">Apple / Standardkalender</option>
+                  <option value="prompt">Immer fragen</option>
+                  <option value="google">Google Kalender</option>
+                  <option value="ics">Fallback: Kalenderdatei (.ics)</option>
+                </select>
+                <div class="toggle-row">
+                  <span>Nach dem Speichern direkt Kalender-App öffnen</span>
+                  <input id="calendarOpenAppAfterSaveToggle" type="checkbox" />
+                </div>
+                <div class="settings-actions">
+                  <button class="ghost" id="testCalendarButton" type="button">Kalenderzugriff testen</button>
+                  <button class="ghost" id="openCalendarAppButton" type="button">Kalender-App öffnen</button>
+                </div>
+              </details>
+            </details>
+
+            <details class="settings-panel">
+              <summary>Tipps</summary>
+              <details class="mini-help">
+                <summary>Wie sprechen</summary>
+                <ul class="simple-list">
+                  <li>Klar und natürlich sprechen</li>
+                  <li>Möglichst ein Gedanke pro Aufnahme</li>
+                  <li>Bei Aufgaben direkt die Handlung nennen</li>
+                  <li>Bei Terminen Datum und Uhrzeit nennen</li>
+                  <li>Keine Befehle nötig, normale Sprache reicht</li>
+                </ul>
+              </details>
+              <details class="mini-help">
+                <summary>Gute Beispiele</summary>
+                <ul class="simple-list">
+                  <li>Morgen 14 Uhr Zahnarzt</li>
+                  <li>Deutsch Abi lernen</li>
+                  <li>Mit Oma und Opa Döner essen</li>
+                  <li>Brot und Milch kaufen</li>
+                  <li>Freitag 16 Uhr Fußballtraining</li>
+                </ul>
+              </details>
+              <details class="mini-help">
+                <summary>Was erkannt wird</summary>
+                <ul class="simple-list">
+                  <li>Aufgaben und To-dos</li>
+                  <li>Termine und Erinnerungen</li>
+                  <li>Einkäufe und Essen</li>
+                  <li>Familienaktivitäten</li>
+                  <li>Schule, Lernen und Prüfungen</li>
+                  <li>Ideen, Finanzen und persönliche Notizen</li>
+                </ul>
+              </details>
+              <details class="mini-help">
+                <summary>Erkennung verbessern</summary>
+                <ul class="simple-list">
+                  <li>Vollständige Formulierungen helfen</li>
+                  <li>Uhrzeiten deutlich nennen</li>
+                  <li>Datum nennen, wenn etwas in die Agenda soll</li>
+                  <li>Themen nicht zu stark vermischen</li>
+                  <li>Kurze Aussagen funktionieren oft am besten</li>
+                </ul>
+              </details>
+              <details class="mini-help">
+                <summary>Alltagssituationen</summary>
+                <ul class="simple-list">
+                  <li>Schule: Mathe lernen, Hausaufgaben, Abi vorbereiten</li>
+                  <li>Familie: Oma besuchen, Mama anrufen, Treffen planen</li>
+                  <li>Einkauf: Brot, Milch, Eier kaufen</li>
+                  <li>Arzttermine: Freitag 10 Uhr Zahnarzt</li>
+                  <li>Freizeit: Samstag 16 Uhr Training</li>
+                  <li>Finanzen: Miete zahlen, Rechnung prüfen</li>
+                </ul>
+              </details>
             </details>
 
             <details class="settings-panel">

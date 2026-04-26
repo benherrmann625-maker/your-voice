@@ -101,6 +101,7 @@ check(
   html.includes("calendarTargetInput") &&
     html.includes("calendarAutoHandoffToggle") &&
     html.includes("agendaCalendarStatusText") &&
+    html.includes("Termine automatisch im Kalender speichern") &&
     app.includes("triggerCalendarHandoff") &&
     app.includes("buildGoogleCalendarCreateUrl") &&
     app.includes("buildSingleItemIcs") &&
@@ -149,10 +150,12 @@ check(
     !html.includes("logoutButton"),
 );
 check("share target still available", app.includes("handleIncomingLaunchContext") && manifest.includes('"share_target"') && manifest.includes('"shortcuts"'));
-check("tips collapsed by default", !html.includes('<details class="settings-panel" open>\n              <summary>Wie sprechen</summary>'));
+check("tips moved into settings", !html.includes('data-view="tips"') && html.includes("<summary>Tipps</summary>") && html.includes("Wie sprechen"));
 check("settings collapsed by default", !html.includes('<details class="settings-panel" open>\n              <summary>Konto</summary>') && !html.includes('<details class="settings-panel" open>\n              <summary>Kalender</summary>'));
 check("agenda create compact layout", html.includes("agenda-advanced-panel") && html.includes("Mehr Optionen") && !html.includes("Direkt in Kalender übernehmen"));
 check("inbox actions compact", app.includes("buildItemActionMenuHtml") && css.includes(".item-action-menu-sheet") && app.includes("data-action=\"toggle\"") && app.includes("data-action=\"quick-edit\""));
+check("topbar settings button", html.includes("settingsTopbarButton") && html.includes("topbar-actions"));
+check("extended design settings", html.includes("accentToneInput") && html.includes("densityInput") && html.includes("fontFamilyInput") && html.includes("radiusStyleInput") && html.includes("animationsToggle"));
 check("cache version advanced", /your-voice-v\d+/.test(sw));
 check("goldset has release examples", goldset.length >= 19);
 check("auth0 nextjs client", auth0Lib.includes("Auth0Client") && middleware.includes("Content-Security-Policy"));

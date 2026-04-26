@@ -25,9 +25,14 @@ const state = {
   selectedKind: "",
   theme: savedSettings.theme || "light",
   colorScheme: savedSettings.colorScheme || "Indigo",
+  accentTone: savedSettings.accentTone || "Automatisch",
   styleMode: savedSettings.styleMode || "Minimal",
+  density: savedSettings.density || (savedSettings.compactLayout ? "Kompakt" : "Komfortabel"),
   fontSize: savedSettings.fontSize || "Normal",
-  compactLayout: Boolean(savedSettings.compactLayout),
+  compactLayout: savedSettings.compactLayout !== undefined ? Boolean(savedSettings.compactLayout) : false,
+  fontFamily: savedSettings.fontFamily || "Modern",
+  radiusStyle: savedSettings.radiusStyle || "Klar",
+  animationsEnabled: savedSettings.animationsEnabled !== false,
   speechLang: savedSettings.speechLang || "de-DE",
   micQuality: savedSettings.micQuality || "Automatisch",
   autoDetect: savedSettings.autoDetect !== false,
@@ -118,11 +123,16 @@ const els = {
   calendarExportButton: document.querySelector("#calendarExportButton"),
   deleteAllButton: document.querySelector("#deleteAllButton"),
   themeButton: document.querySelector("#themeButton"),
+  settingsTopbarButton: document.querySelector("#settingsTopbarButton"),
   settingsThemeButton: document.querySelector("#settingsThemeButton"),
   colorSchemeInput: document.querySelector("#colorSchemeInput"),
+  accentToneInput: document.querySelector("#accentToneInput"),
   styleModeInput: document.querySelector("#styleModeInput"),
+  densityInput: document.querySelector("#densityInput"),
   fontSizeInput: document.querySelector("#fontSizeInput"),
-  compactLayoutToggle: document.querySelector("#compactLayoutToggle"),
+  fontFamilyInput: document.querySelector("#fontFamilyInput"),
+  radiusStyleInput: document.querySelector("#radiusStyleInput"),
+  animationsToggle: document.querySelector("#animationsToggle"),
   speechLangInput: document.querySelector("#speechLangInput"),
   micQualityInput: document.querySelector("#micQualityInput"),
   autoDetectToggle: document.querySelector("#autoDetectToggle"),
@@ -164,7 +174,6 @@ const viewTitles = {
   agenda: "Agenda",
   inbox: "Inbox",
   search: "Suche",
-  tips: "Tipps",
   settings: "Einstellungen",
 };
 
@@ -262,6 +271,9 @@ function bindEvents() {
   els.themeButton.addEventListener("click", () => {
     toggleTheme();
   });
+  els.settingsTopbarButton?.addEventListener("click", () => {
+    setView("settings");
+  });
   els.settingsThemeButton.addEventListener("click", toggleTheme);
   bindSettingsEvents();
   els.calendarViewButtons.forEach((button) => {
@@ -357,9 +369,13 @@ function setView(view) {
 
 function bindSettingsEvents() {
   els.colorSchemeInput.addEventListener("change", () => updateSetting("colorScheme", els.colorSchemeInput.value));
+  els.accentToneInput?.addEventListener("change", () => updateSetting("accentTone", els.accentToneInput.value));
   els.styleModeInput.addEventListener("change", () => updateSetting("styleMode", els.styleModeInput.value));
+  els.densityInput?.addEventListener("change", () => updateSetting("density", els.densityInput.value));
   els.fontSizeInput.addEventListener("change", () => updateSetting("fontSize", els.fontSizeInput.value));
-  els.compactLayoutToggle.addEventListener("change", () => updateSetting("compactLayout", els.compactLayoutToggle.checked));
+  els.fontFamilyInput?.addEventListener("change", () => updateSetting("fontFamily", els.fontFamilyInput.value));
+  els.radiusStyleInput?.addEventListener("change", () => updateSetting("radiusStyle", els.radiusStyleInput.value));
+  els.animationsToggle?.addEventListener("change", () => updateSetting("animationsEnabled", els.animationsToggle.checked));
   els.speechLangInput.addEventListener("change", () => updateSetting("speechLang", els.speechLangInput.value));
   els.micQualityInput.addEventListener("change", () => updateSetting("micQuality", els.micQualityInput.value));
   els.autoDetectToggle.addEventListener("change", () => updateSetting("autoDetect", els.autoDetectToggle.checked));
@@ -513,7 +529,7 @@ function normalizeCalendarTarget(value) {
 
 function getInitialCalendarTarget(value = "") {
   if (["prompt", "device", "google", "ics"].includes(value)) return value;
-  return isCapacitorNativeApp() ? "device" : "prompt";
+  return "device";
 }
 
 function slugify(value) {
@@ -533,15 +549,24 @@ function slugify(value) {
 function applySettings() {
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.dataset.scheme = state.colorScheme.toLowerCase();
+  document.documentElement.dataset.accent = state.accentTone.toLowerCase();
   document.documentElement.dataset.style = state.styleMode.toLowerCase();
+  document.documentElement.dataset.density = state.density.toLowerCase().replace(/\s+/g, "-");
   document.documentElement.dataset.font = state.fontSize.toLowerCase();
-  document.documentElement.dataset.compact = String(state.compactLayout);
+  document.documentElement.dataset.compact = String(state.density !== "Komfortabel");
+  document.documentElement.dataset.typeface = state.fontFamily.toLowerCase();
+  document.documentElement.dataset.radius = state.radiusStyle.toLowerCase();
+  document.documentElement.dataset.motion = state.animationsEnabled ? "on" : "off";
   document.documentElement.dataset.focus = String(state.focusMode);
   els.themeButton.querySelector("span").textContent = state.theme === "dark" ? "☾" : "◐";
   els.colorSchemeInput.value = state.colorScheme;
+  if (els.accentToneInput) els.accentToneInput.value = state.accentTone;
   els.styleModeInput.value = state.styleMode;
+  if (els.densityInput) els.densityInput.value = state.density;
   els.fontSizeInput.value = state.fontSize;
-  els.compactLayoutToggle.checked = state.compactLayout;
+  if (els.fontFamilyInput) els.fontFamilyInput.value = state.fontFamily;
+  if (els.radiusStyleInput) els.radiusStyleInput.value = state.radiusStyle;
+  if (els.animationsToggle) els.animationsToggle.checked = state.animationsEnabled;
   els.speechLangInput.value = state.speechLang;
   els.micQualityInput.value = state.micQuality;
   els.autoDetectToggle.checked = state.autoDetect;
@@ -570,8 +595,8 @@ function applySettings() {
   if (els.calendarIntegrationNote) {
     els.calendarIntegrationNote.textContent = state.calendarTarget === "device"
       ? isNativeCalendarDirectSaveSupported()
-        ? "In der mobilen App schreibt Your Voice Termine direkt in den Standardkalender dieses Geräts und merkt sich die native Event-ID für spätere Updates."
-        : "Der Gerätekalender ist das richtige Ziel für die mobile App. Im Browser steht direktes Speichern dort nicht zur Verfügung."
+        ? "In der mobilen App schreibt Your Voice Termine direkt in Apple Kalender beziehungsweise den Standardkalender des Geräts und merkt sich die native Event-ID für spätere Updates."
+        : "Apple Kalender ist als Standardziel gesetzt. Direktes Speichern funktioniert in der mobilen iPhone-App, im Browser bleibt wegen fehlendem EventKit nur ein Fallback."
       : state.calendarTarget === "google"
         ? hasGoogleCalendarDirectSave()
           ? "Google Kalender ist für direktes Speichern vorbereitet. Neue Termine können ohne Extra-Datei direkt in deinen Google Kalender geschrieben werden."
@@ -2746,9 +2771,14 @@ function snapshotSettings() {
   return {
     theme: state.theme,
     colorScheme: state.colorScheme,
+    accentTone: state.accentTone,
     styleMode: state.styleMode,
+    density: state.density,
     fontSize: state.fontSize,
-    compactLayout: state.compactLayout,
+    compactLayout: state.density !== "Komfortabel",
+    fontFamily: state.fontFamily,
+    radiusStyle: state.radiusStyle,
+    animationsEnabled: state.animationsEnabled,
     speechLang: state.speechLang,
     micQuality: state.micQuality,
     autoDetect: state.autoDetect,
@@ -2942,7 +2972,7 @@ function buildCalendarHandoffFooter(item) {
 }
 
 function formatCalendarTargetLabel(target) {
-  if (target === "device") return "Standardkalender des Geräts";
+  if (target === "device") return "Apple / Standardkalender";
   if (target === "google") return "Google Kalender";
   if (target === "ics") return "Smartphone-Kalender (.ics)";
   return "Auswahl beim Speichern";
@@ -2951,12 +2981,12 @@ function formatCalendarTargetLabel(target) {
 function getCalendarRuntimeStatusText() {
   if (state.calendarRuntimeCheck.detail) return state.calendarRuntimeCheck.detail;
   if (isNativeCalendarDirectSaveSupported()) {
-    return "Mobile App erkannt. Termine können direkt im Standardkalender dieses Geräts gespeichert werden.";
+    return "Mobile App erkannt. Termine können direkt im Apple Kalender beziehungsweise Standardkalender dieses Geräts gespeichert werden.";
   }
   if (isCapacitorNativeApp()) {
     return "Mobile App erkannt, aber das Kalender-Plugin ist noch nicht vollständig verfügbar.";
   }
-  return "Browser erkannt. Direktes Speichern in den Gerätekalender gibt es erst in der mobilen App.";
+  return "Browser erkannt. Direktes Speichern in Apple Kalender gibt es erst in der mobilen App.";
 }
 
 function isCapacitorNativeApp() {
@@ -3609,9 +3639,14 @@ function applyHydratedSettings(settings) {
   const fields = [
     "theme",
     "colorScheme",
+    "accentTone",
     "styleMode",
+    "density",
     "fontSize",
     "compactLayout",
+    "fontFamily",
+    "radiusStyle",
+    "animationsEnabled",
     "speechLang",
     "micQuality",
     "autoDetect",
@@ -3631,6 +3666,9 @@ function applyHydratedSettings(settings) {
   fields.forEach((field) => {
     if (settings[field] !== undefined) state[field] = settings[field];
   });
+  if (!settings.density && settings.compactLayout !== undefined) {
+    state.density = settings.compactLayout ? "Kompakt" : "Komfortabel";
+  }
   state.calendarTarget = normalizeCalendarTarget(state.calendarTarget);
   state.calendarAutoHandoff = Boolean(state.calendarAutoHandoff);
 }
