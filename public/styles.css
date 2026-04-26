@@ -4,14 +4,14 @@
   --muted: #6b7280;
   --line: #e7e9ef;
   --surface: #f7f8fb;
-  --panel: rgba(255, 255, 255, 0.96);
+  --panel: rgba(255, 255, 255, 0.98);
   --solid: #ffffff;
   --accent: #4f46e5;
   --danger: #b42318;
-  --shadow: 0 10px 26px rgba(17, 24, 39, 0.05);
-  --soft-shadow: 0 4px 12px rgba(17, 24, 39, 0.03);
-  --hairline: rgba(17, 24, 39, 0.075);
-  --radius: 8px;
+  --shadow: 0 12px 30px rgba(17, 24, 39, 0.04);
+  --soft-shadow: 0 3px 10px rgba(17, 24, 39, 0.025);
+  --hairline: rgba(17, 24, 39, 0.065);
+  --radius: 7px;
   --radius-sm: 6px;
   --panel-blur: 0px;
   font-family:
@@ -24,10 +24,10 @@
   --muted: #b8c0cc;
   --line: rgba(255, 255, 255, 0.14);
   --surface: #121826;
-  --panel: rgba(30, 41, 59, 0.94);
+  --panel: rgba(30, 41, 59, 0.96);
   --solid: #1e293b;
-  --shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
-  --soft-shadow: 0 4px 12px rgba(0, 0, 0, 0.11);
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+  --soft-shadow: 0 4px 12px rgba(0, 0, 0, 0.09);
   --hairline: rgba(255, 255, 255, 0.1);
 }
 
@@ -305,7 +305,7 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -314,24 +314,24 @@ button {
   top: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
   height: 100vh;
-  padding: 22px 16px;
+  padding: 18px 14px;
   border-right: 1px solid var(--line);
-  background: color-mix(in srgb, var(--solid), transparent 3%);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--solid), transparent 2%);
+  backdrop-filter: blur(10px);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
 }
 
 .brand-mark {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: var(--radius);
   background: var(--ink);
@@ -378,26 +378,26 @@ button {
 
 .tabs {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .tab {
   display: flex;
   align-items: center;
   gap: 9px;
-  min-height: 40px;
+  min-height: 38px;
   padding: 0 10px;
   border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
   text-align: left;
-  font-weight: 740;
-  transition: background 180ms ease, color 180ms ease;
+  font-weight: 760;
+  transition: background 160ms ease, color 160ms ease;
 }
 
 .tab:hover,
 .tab.active {
-  background: color-mix(in srgb, var(--accent), transparent 94%);
+  background: color-mix(in srgb, var(--accent), transparent 95%);
   color: var(--ink);
 }
 
@@ -462,8 +462,8 @@ button {
 .inbox-group {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--solid), transparent 7%);
-  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.035);
+  background: color-mix(in srgb, var(--solid), transparent 5%);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.028);
   overflow: hidden;
   animation: itemIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
@@ -621,7 +621,7 @@ button {
 
 .main {
   min-width: 0;
-  padding: 22px clamp(16px, 2.6vw, 28px) 52px;
+  padding: 18px clamp(16px, 2.4vw, 26px) 48px;
 }
 
 :root[data-focus="true"] .recent-section,
@@ -636,13 +636,13 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .topbar-actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .topbar h2 {
@@ -656,7 +656,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  min-height: 34px;
   border-radius: 999px;
   background: var(--solid);
   color: var(--muted);
@@ -678,14 +678,14 @@ button {
 }
 
 .icon-button {
-  width: 38px;
+  width: 34px;
   border: 1px solid var(--line);
-  transition: transform 180ms ease, background 180ms ease;
+  transition: background 160ms ease, border-color 160ms ease;
 }
 
 .icon-button:hover {
-  transform: translateY(-1px);
-  background: var(--solid);
+  background: color-mix(in srgb, var(--solid), transparent 2%);
+  border-color: color-mix(in srgb, var(--accent), transparent 72%);
 }
 
 .view {
@@ -700,7 +700,7 @@ button {
 .capture-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: 12px;
+  gap: 10px;
   align-items: start;
 }
 
@@ -708,7 +708,7 @@ button {
 .review-panel,
 .search-panel,
 .recent-section {
-  padding: 12px;
+  padding: 11px;
 }
 
 .filter-chips {
@@ -905,16 +905,16 @@ select {
 }
 
 textarea {
-  min-height: 96px;
-  padding: 12px;
+  min-height: 92px;
+  padding: 11px;
   resize: vertical;
   line-height: 1.5;
 }
 
 input,
 select {
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: 40px;
+  padding: 0 11px;
 }
 
 textarea::placeholder,
@@ -935,8 +935,8 @@ select:focus {
 .settings-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 7px;
+  margin-top: 10px;
 }
 
 .item-top-actions {
@@ -1052,15 +1052,15 @@ select:focus {
 
 .item-actions {
   margin-top: 2px;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
 }
 
 .item-actions .ghost,
 .item-actions .danger {
-  min-height: 30px;
-  padding-inline: 9px;
-  font-size: 0.73rem;
+  min-height: 28px;
+  padding-inline: 8px;
+  font-size: 0.71rem;
 }
 
 .item-reminders {
@@ -1092,8 +1092,8 @@ select:focus {
 
 .quick-edit-panel {
   display: grid;
-  gap: 6px;
-  padding: 8px;
+  gap: 5px;
+  padding: 7px;
   margin-top: 4px;
   border: 1px solid color-mix(in srgb, var(--category-color, var(--accent)), transparent 82%);
   border-radius: var(--radius);
@@ -1126,11 +1126,11 @@ select:focus {
 .primary,
 .ghost,
 .danger {
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0 11px;
   border-radius: var(--radius);
   font-weight: 820;
-  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
 .primary {
@@ -1157,7 +1157,6 @@ select:focus {
 .primary:hover,
 .ghost:hover,
 .danger:hover {
-  transform: none;
   box-shadow: none;
 }
 
@@ -1325,7 +1324,7 @@ select:focus {
 
 .item-list {
   display: grid;
-  gap: 8px;
+  gap: 7px;
 }
 
 .item-list.compact .item-card:nth-child(n + 4) {
@@ -1335,14 +1334,14 @@ select:focus {
 .item-card {
   position: relative;
   display: grid;
-  gap: 6px;
-  padding: 10px;
+  gap: 5px;
+  padding: 9px;
   border-color: var(--hairline);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--category-color, var(--accent)), transparent 96%), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--category-color, var(--accent)), transparent 97%), transparent 38%),
     color-mix(in srgb, var(--solid), transparent 5%);
   animation: itemIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
   overflow: visible;
 }
 
@@ -1356,7 +1355,7 @@ select:focus {
 
 .item-card.pinned {
   border-color: color-mix(in srgb, var(--category-color, var(--accent)), transparent 56%);
-  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.035);
+  box-shadow: 0 3px 10px rgba(17, 24, 39, 0.03);
 }
 
 .item-card.due-overdue {
@@ -1376,8 +1375,7 @@ select:focus {
 }
 
 .item-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--soft-shadow);
+  box-shadow: 0 5px 14px rgba(17, 24, 39, 0.04);
 }
 
 .item-card.done {
@@ -1393,13 +1391,13 @@ select:focus {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: start;
-  gap: 8px;
+  gap: 7px;
 }
 
 .item-icon {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--category-color, var(--accent)), transparent 88%);
@@ -1450,13 +1448,13 @@ select:focus {
   right: 0;
   z-index: 12;
   display: grid;
-  gap: 5px;
-  min-width: 164px;
-  padding: 8px;
+  gap: 4px;
+  min-width: 156px;
+  padding: 7px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.11);
 }
 
 .item-action-menu-sheet .ghost,
@@ -1566,22 +1564,21 @@ select:focus {
   position: relative;
   display: grid;
   align-content: start;
-  gap: 7px;
-  min-height: 68px;
-  padding: 8px;
+  gap: 6px;
+  min-height: 64px;
+  padding: 7px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   text-align: left;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
 .calendar-day:hover,
 .calendar-day.selected {
   border-color: color-mix(in srgb, var(--day-color, var(--accent)), transparent 45%);
   box-shadow: var(--soft-shadow);
-  transform: translateY(-1px);
 }
 
 .calendar-day.selected {
@@ -1673,20 +1670,20 @@ select:focus {
 .agenda-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 7px;
+  margin-bottom: 10px;
   width: min(1120px, 100%);
   margin-inline: auto;
 }
 
 .metric-card {
-  min-height: 66px;
-  padding: 11px;
+  min-height: 62px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--solid), transparent 4%), color-mix(in srgb, var(--solid), transparent 16%));
-  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.035);
+  box-shadow: 0 4px 10px rgba(17, 24, 39, 0.028);
 }
 
 .metric-card span {
@@ -1728,7 +1725,7 @@ select:focus {
 
 .agenda-create-panel {
   width: min(1120px, 100%);
-  margin: 0 auto 12px;
+  margin: 0 auto 10px;
   overflow: hidden;
 }
 
@@ -1765,9 +1762,9 @@ select:focus {
 .agenda-create-grid {
   display: grid;
   grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(120px, 0.82fr));
-  gap: 10px;
+  gap: 8px;
   align-items: start;
-  padding: 0 12px 12px;
+  padding: 0 11px 11px;
   animation: cardIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -1829,7 +1826,7 @@ select:focus {
 .settings-stack {
   display: grid;
   max-width: 760px;
-  gap: 6px;
+  gap: 5px;
 }
 
 .settings-panel {
@@ -1867,7 +1864,7 @@ select:focus {
 }
 
 .settings-panel > :not(summary) {
-  margin: 0 12px 10px;
+  margin: 0 11px 9px;
   animation: cardIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 

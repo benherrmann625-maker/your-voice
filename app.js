@@ -231,6 +231,7 @@ async function init() {
   registerServiceWorker();
   setupSpeech();
   bindEvents();
+  void primeAutomaticCalendarMode();
   void refreshAuthUi();
   window.addEventListener("focus", () => {
     void refreshAuthUi();
@@ -239,6 +240,11 @@ async function init() {
     if (document.visibilityState === "visible") void refreshAuthUi();
   });
   renderAll();
+}
+
+async function primeAutomaticCalendarMode() {
+  if (state.calendarTarget !== "device" || !state.calendarAutoHandoff || !isCapacitorNativeApp()) return;
+  await runCalendarCapabilityCheck({ silent: true });
 }
 
 function bindEvents() {
@@ -2090,17 +2096,25 @@ function renderAgendaEntry(item) {
           ${calendarLabel ? `<span>${escapeHtml(calendarLabel)}</span>` : ""}
         </div>
       </div>
-      <div class="item-top-actions">
-        <button class="ghost tiny-button" type="button" data-action="quick-edit">Ändern</button>
-        ${buildItemActionMenuHtml([
-          canHandoffToCalendar(item)
-            ? '<button class="ghost" type="button" data-action="calendar">Kalender</button>'
-            : "",
-        ])}
-      </div>
+    </div>
+    <div class="item-actions">
+      <button class="ghost" type="button" data-action="toggle">${item.status === "done" ? "Wieder öffnen" : "Erledigt"}</button>
+      <button class="ghost" type="button" data-action="quick-edit">Ändern</button>
+      <button class="danger" type="button" data-action="delete">Löschen</button>
+      ${buildItemActionMenuHtml([
+        canHandoffToCalendar(item)
+          ? '<button class="ghost" type="button" data-action="calendar">Kalender</button>'
+          : "",
+      ])}
     </div>
   `;
   card.append(renderQuickEditPanel(item));
+  card.querySelector('[data-action="toggle"]')?.addEventListener("click", () => {
+    updateItem(item.id, { status: item.status === "done" ? "open" : "done" });
+  });
+  card.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
+    markItemDeleted(item.id);
+  });
   card.querySelector('[data-action="calendar"]')?.addEventListener("click", () => {
     void triggerCalendarHandoff(item.id, "button");
   });
@@ -2164,12 +2178,12 @@ function renderItem(item) {
             ? `<button class="ghost" type="button" data-action="restore">Wiederherstellen</button>`
             : `<button class="ghost" type="button" data-action="toggle">${item.status === "done" ? "Wieder öffnen" : "Erledigt"}</button>
                <button class="ghost" type="button" data-action="quick-edit">Ändern</button>
+               <button class="danger" type="button" data-action="delete">Löschen</button>
                ${buildItemActionMenuHtml([
                  `<button class="ghost" type="button" data-action="pin">${item.pinned ? "Lösen" : "Anpinnen"}</button>`,
                  `<button class="ghost icon-action" type="button" data-action="up" aria-label="Nach oben">↑ Nach oben</button>`,
                  `<button class="ghost icon-action" type="button" data-action="down" aria-label="Nach unten">↓ Nach unten</button>`,
                  canHandoffToCalendar(item) ? `<button class="ghost" type="button" data-action="calendar">Kalender</button>` : "",
-                 `<button class="danger" type="button" data-action="delete">Löschen</button>`,
                ])}`
         }
 	    </div>
@@ -2264,10 +2278,6 @@ function renderQuickEditPanel(item) {
         <input id="quick-time-${item.id}" type="time" value="${timeValue}" />
       </label>
     </div>
-    <div class="quick-edit-actions">
-      <button class="primary" type="button" data-quick-action="save">Speichern</button>
-      <button class="ghost" type="button" data-quick-action="full">Mehr Felder</button>
-    </div>
   `;
   return panel;
 }
@@ -2281,18 +2291,18 @@ function bindQuickEditTriggers(card, item) {
     state.quickEditItemId = "";
     renderAll();
   });
-  card.querySelector('[data-quick-action="save"]')?.addEventListener("click", () => {
-    saveQuickEdit(card, item);
-  });
-  card.querySelector('[data-quick-action="full"]')?.addEventListener("click", () => {
-    state.quickEditItemId = "";
-    state.currentDraft = item;
-    renderReview(item);
-    setView("capture");
+  card.querySelectorAll(`#quick-title-${item.id}, #quick-date-${item.id}, #quick-time-${item.id}`).forEach((input) => {
+    input.addEventListener("change", () => {
+      saveQuickEdit(card, item, { close: false, toast: false });
+    });
+    input.addEventListener("blur", () => {
+      saveQuickEdit(card, item, { close: false, toast: false });
+    });
   });
 }
 
-function saveQuickEdit(card, item) {
+function saveQuickEdit(card, item, options = {}) {
+  const { close = true, toast = true } = options;
   const title = card.querySelector(`#quick-title-${item.id}`)?.value.trim() || cleanDisplayText(item.title);
   const dateValue = card.querySelector(`#quick-date-${item.id}`)?.value || "";
   const timeValue = card.querySelector(`#quick-time-${item.id}`)?.value || "";
@@ -2306,11 +2316,12 @@ function saveQuickEdit(card, item) {
     snoozeUntil: null,
     reminderDisabled: dueStart ? item.reminderDisabled : true,
   });
-  state.quickEditItemId = "";
+  if (close) state.quickEditItemId = "";
   if (dueStart && !item.reminderDisabled && state.remindersEnabled) void ensureReminderPermission();
-  showToast("Eintrag aktualisiert");
+  if (toast) showToast("Eintrag aktualisiert");
   const refreshed = state.items.find((entry) => entry.id === item.id);
   if (refreshed) void handleCalendarHandoffAfterSave(refreshed);
+  if (!close) renderAll();
 }
 
 function updateItem(id, patch) {
@@ -3047,17 +3058,30 @@ async function ensureNativeCalendarAccess() {
 }
 
 async function requestNativeCalendarPermission(calendar) {
+  const isGranted = (response) => {
+    const result = response?.result;
+    return result === "granted" || result === "limited";
+  };
+
+  try {
+    const existing = await calendar.checkPermission?.({ scope: "writeCalendar" });
+    if (isGranted(existing)) return true;
+  } catch {
+    /* noop */
+  }
+
   const permissionCalls = [
-    () => calendar.checkPermission?.({ scope: "writeCalendar" }),
-    () => calendar.requestFullCalendarAccess?.(),
     () => calendar.requestWriteOnlyCalendarAccess?.(),
+    () => calendar.requestFullCalendarAccess?.(),
     () => calendar.requestPermission?.({ scope: "writeCalendar" }),
+    () => calendar.requestAllPermissions?.(),
   ];
 
   for (const run of permissionCalls) {
     try {
       const response = await run();
-      if (response?.result === "granted") return true;
+      if (isGranted(response)) return true;
+      if (isGranted(response?.result?.calendar)) return true;
     } catch {
       continue;
     }
@@ -3088,14 +3112,15 @@ async function openPreferredCalendarApp(date = new Date()) {
   showToast("Kalender-App direkt öffnen gibt es erst in der mobilen App.");
 }
 
-async function runCalendarCapabilityCheck() {
+async function runCalendarCapabilityCheck(options = {}) {
+  const { silent = false } = options;
   if (!isCapacitorNativeApp()) {
     state.calendarRuntimeCheck = {
       status: "browser",
       detail: "Browser erkannt. Für direktes Schreiben in den Gerätekalender brauchst du die mobile App mit Capacitor.",
     };
     applySettings();
-    showToast("Im Browser geprüft");
+    if (!silent) showToast("Im Browser geprüft");
     return;
   }
 
@@ -3105,18 +3130,18 @@ async function runCalendarCapabilityCheck() {
     state.calendarRuntimeCheck = {
       status: "ready",
       detail: calendarId
-        ? "Standardkalender gefunden. Your Voice kann hier direkt speichern."
-        : "Kalenderzugriff vorhanden. Das Ziel wird beim Speichern automatisch gewählt.",
+        ? "Standardkalender gefunden. Your Voice schreibt neue Termine automatisch direkt dort hinein."
+        : "Kalenderzugriff vorhanden. Das Ziel wird beim Speichern automatisch als Gerätestandard gewählt.",
     };
     applySettings();
-    showToast("Kalender bereit");
+    if (!silent) showToast("Kalender bereit");
   } catch (error) {
     state.calendarRuntimeCheck = {
       status: "error",
       detail: "Kalenderzugriff noch nicht bereit. Bitte Berechtigungen in der mobilen App erlauben.",
     };
     applySettings();
-    showToast("Kalenderzugriff fehlt");
+    if (!silent) showToast("Kalenderzugriff fehlt");
   }
 }
 
@@ -3131,8 +3156,15 @@ async function resolveNativeDeviceCalendarId(calendar) {
   try {
     const calendars = await calendar.listCalendars?.();
     const list = Array.isArray(calendars?.result) ? calendars.result : [];
-    const writable = list.find((entry) => entry?.isImmutable !== true && entry?.allowsContentModifications !== false);
-    return writable?.id || list[0]?.id || "";
+    const writableCalendars = list.filter((entry) => entry?.isImmutable !== true && entry?.allowsContentModifications !== false);
+    const preferred =
+      writableCalendars.find((entry) => entry?.isDefault === true) ||
+      writableCalendars.find((entry) => entry?.isPrimary === true) ||
+      writableCalendars.find((entry) => entry?.source?.type === "CAL_DAV" && entry?.isSubscribed !== true) ||
+      writableCalendars.find((entry) => entry?.source?.type === "MOBILE_ME") ||
+      writableCalendars.find((entry) => entry?.source?.type === "LOCAL") ||
+      writableCalendars[0];
+    return preferred?.id || list[0]?.id || "";
   } catch {
     return "";
   }
@@ -3219,11 +3251,13 @@ async function handoffItemToDeviceCalendar(item, source = "button") {
   if (!isCapacitorNativeApp()) {
     state.calendarRuntimeCheck = {
       status: "browser",
-      detail: "Der Gerätekalender ist ausgewählt, aber du bist gerade im Browser. Your Voice nutzt deshalb den Web-Fallback.",
+      detail: "Der Apple-Standardkalender ist als Ziel gesetzt, aber du bist gerade im Browser. Direktes Speichern geht erst in der mobilen App.",
     };
     applySettings();
-    showToast("Direktes Speichern im Gerätekalender gibt es in der mobilen App.");
-    await openCalendarHandoffSheet(item, source);
+    showToast("Direktes Speichern in Apple Kalender geht in der mobilen App.");
+    if (source !== "autosave") {
+      await openCalendarHandoffSheet(item, source);
+    }
     return;
   }
 
@@ -3252,17 +3286,17 @@ async function handoffItemToDeviceCalendar(item, source = "button") {
 
     rememberCalendarHandoff(item.id, {
       target: "device",
-      method: source === "autosave" ? "native-auto" : "native-default",
+      method: source === "autosave" ? "native-default-auto" : "native-default-manual",
       lastSentAt: new Date().toISOString(),
       externalId: eventId,
       calendarId,
     });
     state.calendarRuntimeCheck = {
       status: "ready",
-      detail: "Standardkalender verbunden. Neue Termine werden direkt auf dem Gerät gespeichert.",
+      detail: "Standardkalender verbunden. Neue Termine werden jetzt direkt und automatisch in Apple Kalender gespeichert.",
     };
     applySettings();
-    showToast(existingEventId ? "Im Standardkalender aktualisiert" : "Im Standardkalender gespeichert");
+    showToast(existingEventId ? "Im Apple-Kalender aktualisiert" : "Direkt in Apple Kalender gespeichert");
     if (state.calendarOpenAppAfterSave) {
       await openPreferredCalendarApp(new Date(item.dueStart || item.agendaDate || item.createdAt));
     }
@@ -3270,10 +3304,10 @@ async function handoffItemToDeviceCalendar(item, source = "button") {
     console.warn("Native calendar direct save failed", error);
     state.calendarRuntimeCheck = {
       status: "error",
-      detail: "Direktes Speichern in den Gerätekalender hat gerade nicht funktioniert. Prüfe die mobile Berechtigung oder nutze Google/.ics als Fallback.",
+      detail: "Direktes Speichern in Apple Kalender hat gerade nicht funktioniert. Prüfe die mobile Kalenderberechtigung.",
     };
     applySettings();
-    showToast("Direktes Speichern in den Gerätekalender hat nicht geklappt.");
+    showToast("Direktes Speichern in Apple Kalender hat nicht geklappt.");
   }
 }
 
