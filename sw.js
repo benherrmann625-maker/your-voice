@@ -1,4 +1,4 @@
-const CACHE_NAME = "your-voice-v24";
+const CACHE_NAME = "your-voice-v25";
 const ASSETS = [
   "/",
   "/styles.css",
@@ -23,7 +23,26 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request).catch(() => caches.match("/"))),
-  );
+  const url = new URL(event.request.url);
+  const isAppShell =
+    url.origin === self.location.origin &&
+    ["/", "/styles.css", "/app.js", "/manifest.webmanifest", "/icon.svg"].includes(url.pathname);
+
+  if (isAppShell) {
+    event.respondWith(
+      fetch(event.request)
+        .then(async (response) => {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, response.clone());
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          return cached || caches.match("/");
+        }),
+    );
+    return;
+  }
+
+  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
 });
